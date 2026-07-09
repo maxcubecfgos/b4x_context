@@ -2,34 +2,34 @@ name: Build and Release
 
 on:
   push:
-	tags:
-	  - 'v*'
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
 
 jobs:
   build:
-	runs-on: windows-latest
-	steps:
-	  - name: Checkout
-		uses: actions/checkout@v4
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-	  - name: Setup .NET 8
-		uses: actions/setup-dotnet@v4
-		with:
-		  dotnet-version: '8.0.x'
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
 
-	  - name: Publish self-contained single-file exe
-		run: dotnet publish b4x_context.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+      - name: Publish self-contained single-file exe
+        run: dotnet publish b4x_context.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
 
-	  - name: Zip artifact
-		run: Compress-Archive -Path publish\* -DestinationPath B4XContext-${{ github.ref_name }}-win-x64.zip
+      - name: Zip artifact
+        run: Compress-Archive -Path publish\* -DestinationPath B4XContext-${{ github.ref_name }}-win-x64.zip
 
-	  - name: Create GitHub Release
-		uses: softprops/action-gh-release@v2
-		with:
-		  files: B4XContext-${{ github.ref_name }}-win-x64.zip
-		  generate_release_notes: true
-		env:
-		  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: B4XContext-${{ github.ref_name }}-win-x64.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

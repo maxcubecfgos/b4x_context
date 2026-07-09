@@ -1,3 +1,61 @@
-.vs
+# Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build artifacts
+bin/
 obj/
 Release/
+Debug/
+packages/
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# .NET
+*.dll
+*.exe
+*.pdb
+*.appx
+*.appxupload
+*.msi
+*.msp
+*.msm
+*.deploy
+
+# Resharper
+*.DotSettings.user
+
+# Rider
+.idea/
+*.DotSettings.user
+
+# Temp files
+*.tmp
+*.temp
+*.log
+*.swp
+*.swo
+*~
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
