@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using B4XContext.Models;
 using WF = System.Windows.Forms;
+using SW = System.Windows;
 // Placeholder: file verified up-to-date (no-op)
 using MessageBox = System.Windows.MessageBox;
 using B4XContext.Services;
@@ -37,6 +38,8 @@ namespace b4x_context
         private string _projectRoot;
         private string _projectFile;
         private string _lastCompileText;
+        // Tracks the raw parsed result of the last build. Null = no build has been run yet.
+        private Dictionary<string, object> _lastBuildResult;
         private string _activeFile;
         private int _activeLine = 1;
         private string _activeSubName;
@@ -48,13 +51,94 @@ namespace b4x_context
         public MainWindow()
         {
             InitializeComponent();
-            // When the window is activated, attempt to pull text from the clipboard into the ACTIVE SUB box.
-            // This replaces the old file+line command-line detection flow.
-            this.Activated += MainWindow_Activated;
 
             // Setup settings path and load hotkey config
             _settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "B4XContext", "settings.json");
             LoadHotkeySettings();
+        }
+
+        // Low-level global Ctrl+C watcher implementation (see user-provided exact implementation)
+        private const int WH_KEYBOARD_LL = 13;
+        private const int WM_KEYDOWN = 0x0100;
+        private const int VK_CONTROL = 0x11;
+        private const int VK_C = 0x43;
+
+        private IntPtr _hookId = IntPtr.Zero;
+        private LowLevelKeyboardProc _proc;
+
+        private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern IntPtr GetModuleHandle(string lpModuleName);
+
+        [DllImport("user32.dll")]
+        private static extern short GetAsyncKeyState(int vKey);
+
+        private void HookKeyboard()
+        {
+            _proc = HookCallback;
+            using var curProcess = System.Diagnostics.Process.GetCurrentProcess();
+            using var curModule = curProcess.MainModule;
+            _hookId = SetWindowsHookEx(WH_KEYBOARD_LL, _proc, GetModuleHandle(curModule.ModuleName), 0);
+        }
+
+        private void UnhookKeyboard()
+        {
+            if (_hookId != IntPtr.Zero)
+            {
+                UnhookWindowsHookEx(_hookId);
+                _hookId = IntPtr.Zero;
+            }
+        }
+
+        private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+        {
+            if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN)
+            {
+                int vkCode = Marshal.ReadInt32(lParam);
+                if (vkCode == VK_C && (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0)
+                {
+                    OnGlobalCopyDetected();
+                }
+            }
+            return CallNextHookEx(_hookId, nCode, wParam, lParam);
+        }
+
+        private void OnGlobalCopyDetected()
+        {
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                try
+                {
+                    if (System.Windows.Clipboard.ContainsText())
+                    {
+                        string text = System.Windows.Clipboard.GetText();
+                        // Guard: if the clipboard contains an exported bundle (our own output), skip auto-populating
+                        if (!string.IsNullOrWhiteSpace(text) && text.TrimStart().StartsWith("# Context Bundle", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return;
+                        }
+                        PreambleText.Text = text;
+                    }
+                }
+                catch
+                {
+                    // clipboard can be momentarily locked by another process, just skip
+                }
+            };
+            timer.Start();
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -67,6 +151,8 @@ namespace b4x_context
             {
                 _hwndSource.AddHook(WndProc);
                 TryRegisterHotkey();
+                // Install keyboard hook to observe Ctrl+C globally
+                HookKeyboard();
             }
         }
 
@@ -192,6 +278,8 @@ namespace b4x_context
                 {
                     _hwndSource.RemoveHook(WndProc);
                 }
+                // Unhook low-level keyboard hook
+                UnhookKeyboard();
             }
             catch { }
             base.OnClosing(e);
@@ -265,48 +353,7 @@ namespace b4x_context
 
         private void MainWindow_Activated(object? sender, EventArgs e)
         {
-            // On window activation, read the clipboard (if text) and populate the Active Sub textbox
-            try
-            {
-                if (!System.Windows.Clipboard.ContainsText())
-                    return;
-
-                var txt = System.Windows.Clipboard.GetText();
-                if (string.IsNullOrEmpty(txt))
-                    return;
-
-                // Don't overwrite if it's identical to what user already has
-                if (string.Equals(PreambleText.Text ?? string.Empty, txt, StringComparison.Ordinal))
-                    return;
-
-                // Optional: if the pasted text contains exactly one Sub, extract just that Sub
-                try
-                {
-                    var (root, issues) = B4xParser.Parse(txt);
-                    var nodes = B4xParser.FlattenSubsAndTypes(root).Where(n => n.Kind == "Sub").ToList();
-                    if (nodes.Count == 1 && nodes[0].StartLine >= 0 && nodes[0].EndLine.HasValue)
-                    {
-                        // Extract the sub's source range (lines are 1-based in parser utilities)
-                        var extracted = CodeUtils.ExtractSubBySourceText(txt, nodes[0].StartLine, nodes[0].EndLine.Value);
-                        if (!string.IsNullOrEmpty(extracted))
-                        {
-                            PreambleText.Text = extracted;
-                            return;
-                        }
-                    }
-                }
-                catch
-                {
-                    // Parsing failed or not exactly one sub: fall back to raw clipboard text
-                }
-
-                PreambleText.Text = txt;
-            }
-            catch
-            {
-                // Clipboard access can fail if locked by another process (COMException).
-                // Fail silently per requirements.
-            }
+            // Disabled: PreambleText should only be updated via global Ctrl+C watcher or manual paste by user.
         }
 
         private int EstimateTokensForFile(ProjectFile f)
@@ -407,8 +454,28 @@ namespace b4x_context
 
         private void GenerateButton_Click(object sender, RoutedEventArgs e)
         {
+            // Determine whether to include compile errors in the bundle.
+            // Only include when a build has actually run and produced errors (or a fatal runner error).
+            string compileErrorsToInclude = null;
+            if (_lastBuildResult != null)
+            {
+                if (_lastBuildResult.TryGetValue("fatal_error", out var fat))
+                {
+                    // Include a small build-failure block so the consumer knows the build failed to run
+                    compileErrorsToInclude = $"## BUILD ERROR\n\n{fat}";
+                }
+                else
+                {
+                    var success = _lastBuildResult.TryGetValue("success", out var sucObj) && sucObj is bool sb && sb;
+                    if (!success && !string.IsNullOrEmpty(_lastCompileText))
+                    {
+                        compileErrorsToInclude = _lastCompileText;
+                    }
+                }
+            }
+
             var md = BundleBuilder.BuildMarkdown(PreambleText.Text, TaskText.Text, _files, includeFileTree: FileTreeToggle.IsChecked == true,
-                activeCode: PreambleText.Text, activeFile: _activeFile, activeSub: _activeSubName, compileErrors: _lastCompileText);
+                activeCode: PreambleText.Text, activeFile: _activeFile, activeSub: _activeSubName, compileErrors: compileErrorsToInclude);
             BundleBuilder.CopyToClipboard(md);
             GenerateButton.Content = "Copied!";
             var t = new System.Timers.Timer(1200) { AutoReset = false };
@@ -447,10 +514,13 @@ namespace b4x_context
                 return;
             }
 
-            if (parsed == null) parsed = new Dictionary<string, object>();
+            if (parsed == null) parsed = null; // keep null to indicate no build run
+
+            // Save last build result state explicitly
+            _lastBuildResult = parsed;
 
             // Handle fatal errors from runner
-            if (parsed.TryGetValue("fatal_error", out var fat))
+            if (parsed != null && parsed.TryGetValue("fatal_error", out var fat))
             {
                 CompileStatusText.Text = $"Build error: {fat}";
                 CompileStatusText.Foreground = System.Windows.Media.Brushes.OrangeRed;
@@ -462,11 +532,35 @@ namespace b4x_context
             // Format compile errors into markdown
             try
             {
-                _lastCompileText = BuildFormatter.Format(parsed);
+                // Only format if a build actually ran
+                if (parsed == null)
+                {
+                    _lastCompileText = string.Empty;
+                }
+                else
+                {
+                    _lastCompileText = BuildFormatter.Format(parsed);
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                _lastCompileText = string.Empty;
+                // Internal tool error while formatting build output — present clearly and include stack trace
+                var sbErr = new System.Text.StringBuilder();
+                sbErr.AppendLine("## ⚠ Internal tool error while parsing build output");
+                sbErr.AppendLine();
+                sbErr.AppendLine("An internal exception occurred while parsing the build output. This is a tool error, not a compiler error.");
+                sbErr.AppendLine();
+                sbErr.AppendLine($"Exception: {ex.GetType().FullName}: {ex.Message}");
+                sbErr.AppendLine();
+                sbErr.AppendLine("Stack trace:");
+                sbErr.AppendLine("```");
+                sbErr.AppendLine(ex.ToString());
+                sbErr.AppendLine("```");
+                _lastCompileText = sbErr.ToString();
+
+                // Visual feedback
+                CompileStatusText.Text = "Internal error parsing build output";
+                CompileStatusText.Foreground = System.Windows.Media.Brushes.OrangeRed;
             }
 
             // Visual feedback based on success/errors

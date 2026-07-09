@@ -13,8 +13,8 @@ namespace B4XContext.Services
             if (success) return string.Empty;
 
             var sb = new StringBuilder();
-            var platform = buildResult.ContainsKey("platform") ? buildResult["platform"]?.ToString() : "?";
-            var version = buildResult.ContainsKey("version") ? buildResult["version"]?.ToString() : "";
+            var platform = buildResult.TryGetValue("platform", out var pval) && pval != null ? pval.ToString() : "?";
+            var version = buildResult.TryGetValue("version", out var vval) && vval != null ? vval.ToString() : "";
             sb.AppendLine($"## COMPILATION ERRORS ({platform} {version})\n");
 
             if (buildResult.TryGetValue("errors", out var errsObj) && errsObj is System.Collections.IEnumerable errs)
@@ -23,18 +23,19 @@ namespace B4XContext.Services
                 {
                     if (o is Dictionary<string, object> e)
                     {
-                        var mod = e.ContainsKey("module") ? e["module"]?.ToString() ?? "(unknown module)" : "(unknown module)";
-                        var lineInfo = e.ContainsKey("b4x_line") && e["b4x_line"] != null ? $"line {e["b4x_line"]}" : "";
+                        var mod = e.TryGetValue("module", out var mval) && mval != null ? mval.ToString() : "(unknown module)";
+                        var lineInfo = e.TryGetValue("b4x_line", out var lval) && lval != null ? $"line {lval}" : "";
                         sb.AppendLine($"### {mod} {lineInfo}".Trim());
-                        if (e.ContainsKey("source_line") && e["source_line"] != null)
+                        if (e.TryGetValue("source_line", out var src) && src != null)
                         {
                             sb.AppendLine("```b4x");
-                            sb.AppendLine(e["source_line"].ToString());
+                            sb.AppendLine(src.ToString());
                             sb.AppendLine("```");
                         }
-                        sb.AppendLine($"**{e.GetValueOrDefault("message", "").ToString()}**");
-                        if (e.ContainsKey("symbol") && e["symbol"] != null) sb.AppendLine($"- symbol: {e["symbol"]}");
-                        if (e.ContainsKey("location") && e["location"] != null) sb.AppendLine($"- location: {e["location"]}");
+                        var message = e.TryGetValue("message", out var mmsg) && mmsg != null ? mmsg.ToString() : string.Empty;
+                        sb.AppendLine($"**{message}**");
+                        if (e.TryGetValue("symbol", out var sym) && sym != null) sb.AppendLine($"- symbol: {sym}");
+                        if (e.TryGetValue("location", out var loc) && loc != null) sb.AppendLine($"- location: {loc}");
                         sb.AppendLine();
                     }
                 }

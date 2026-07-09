@@ -8,6 +8,17 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
+  <PropertyGroup>
+    <!-- Application icon (embedded in Win32 resources) -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Ensure the icon file is included in the project and copied to output for tooling/runtime -->
+    <None Include="Assets\app.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
   <!-- Publish-time defaults for single-file, self-contained, optimized Windows builds -->
   <PropertyGroup>
@@ -34,5 +45,8 @@
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include=".github\workflows\release.yml" />
+  </ItemGroup>
 
 </Project>

@@ -1,0 +1,46 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Application icon (only set when an icon file exists to avoid build failures) -->
+    <ApplicationIcon Condition="Exists('Assets\\app.ico')">Assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- Publish-time defaults for single-file, self-contained, optimized Windows builds -->
+  <PropertyGroup>
+    <!-- Default to Release when no configuration supplied -->
+    <Configuration Condition="'$(Configuration)'==''">Release</Configuration>
+
+    <!-- Target Windows x64 runtime by default -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+    <!-- Produce a self-contained single-file exe -->
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+
+    <!-- Trimming and R2R for size and startup improvements -->
+    <!-- Disable trimming when WinForms is in use to avoid NETSDK1175 (WinForms incompatible with trimming) -->
+    <PublishTrimmed Condition="'$(UseWindowsForms)' != 'true'">true</PublishTrimmed>
+    <TrimMode Condition="'$(UseWindowsForms)' != 'true'">link</TrimMode>
+    <!-- Allow trimming on WPF with explicit suppression (use with caution) -->
+    <_SuppressWpfTrimError>true</_SuppressWpfTrimError>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
+    <!-- Disable debug symbols for production publish -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include=".github\workflows\release.yml" />
+  </ItemGroup>
+
+</Project>

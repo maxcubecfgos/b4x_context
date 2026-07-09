@@ -64,7 +64,7 @@ namespace B4XContext.Services
                 sb.AppendLine();
                 try
                 {
-                    if (f.Kind == "bal")
+                    if (f.Kind == "bal" || f.Kind == "bjl" || f.Kind == "bil")
                     {
                         var data = System.IO.File.ReadAllBytes(f.Path);
                         var decoded = Engine.BalDecoder.Decode(data, full: f.Mode == FileMode.Full);

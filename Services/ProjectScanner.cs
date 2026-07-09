@@ -39,7 +39,7 @@ namespace B4XContext.Services
                     continue;
 
                 var ext = Path.GetExtension(f).ToLowerInvariant();
-                if (ext == ".bas" || ext == ".bal" || ext == ".b4a" || ext == ".b4j" || ext == ".b4i")
+                if (ext == ".bas" || ext == ".bal" || ext == ".bjl" || ext == ".bil" || ext == ".b4a" || ext == ".b4j" || ext == ".b4i")
                 {
                     var pf = new ProjectFile(f)
                     {

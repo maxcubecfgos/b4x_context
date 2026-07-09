@@ -55,10 +55,25 @@ namespace B4XContext.Engine
 
                 if (line.StartsWith("Error", StringComparison.OrdinalIgnoreCase))
                 {
-                    var tuple = ParseErrorBlock(lines, i, result["platform"]?.ToString());
+                    // Use TryGetValue to avoid KeyNotFoundException if 'platform' is missing
+                    string platformStr = null;
+                    if (result.TryGetValue("platform", out var pObj) && pObj != null) platformStr = pObj.ToString();
+
+                    var tuple = ParseErrorBlock(lines, i, platformStr);
                     var err = tuple.Item1;
                     i = tuple.Item2;
-                    ((List<Dictionary<string, object>>)result["errors"]).Add(err);
+
+                    // Add to errors list defensively
+                    if (result.TryGetValue("errors", out var errsObj) && errsObj is List<Dictionary<string, object>> errsList)
+                    {
+                        errsList.Add(err);
+                    }
+                    else
+                    {
+                        // If the errors list isn't present for some reason, create one
+                        result["errors"] = new List<Dictionary<string, object>> { err };
+                    }
+
                     result["success"] = false;
                     continue;
                 }

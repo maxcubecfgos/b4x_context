@@ -33,6 +33,17 @@ namespace B4XContext.Services
 
             try
             {
+                // Log the exact invocation details to a temporary log file for debug (developer only)
+                try
+                {
+                    var debugLog = Path.Combine(Path.GetTempPath(), "b4x_builder_invoke.log");
+                    File.AppendAllText(debugLog, $"\n--- Invocation [{DateTime.Now}] ---\n");
+                    File.AppendAllText(debugLog, $"WorkingDirectory: {startInfo.WorkingDirectory}\n");
+                    File.AppendAllText(debugLog, $"FileName: {startInfo.FileName}\n");
+                    File.AppendAllText(debugLog, $"Arguments: {startInfo.Arguments}\n");
+                }
+                catch { }
+
                 using var proc = Process.Start(startInfo);
                 if (proc == null)
                 {
@@ -52,8 +63,32 @@ namespace B4XContext.Services
                     return result;
                 }
 
+                // After process exit, log exit code and raw output for debugging
+                try
+                {
+                    var debugLog = Path.Combine(Path.GetTempPath(), "b4x_builder_invoke.log");
+                    File.AppendAllText(debugLog, $"ExitCode: {proc.ExitCode}\n");
+                    File.AppendAllText(debugLog, "--- Raw Output Start ---\n");
+                    File.AppendAllText(debugLog, output.ToString());
+                    File.AppendAllText(debugLog, "\n--- Raw Output End ---\n");
+                }
+                catch { }
+
+                // If exit code indicates failure and there's no output, surface a clear fatal error
+                if (proc.ExitCode != 0 && output.Length == 0)
+                {
+                    result["fatal_error"] = $"Builder exited with code {proc.ExitCode} and produced no output.";
+                    return result;
+                }
+
                 var parsed = BuildOutputParser.Parse(output.ToString());
                 return parsed;
+            }
+            catch (System.ComponentModel.Win32Exception wex)
+            {
+                // File not found or similar OS-level failure starting the process
+                result["fatal_error"] = $"Failed to start builder process: {wex.Message}";
+                return result;
             }
             catch (Exception ex)
             {
