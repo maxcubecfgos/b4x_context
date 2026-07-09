@@ -1,0 +1,81 @@
+﻿<Window x:Class="b4x_context.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:b4x_context"
+        mc:Ignorable="d"
+        Title="B4X_Context" Width="1000" Height="700" MinWidth="900" MinHeight="620" Background="{StaticResource WindowBackgroundBrush}">
+    <Grid Margin="0" Background="{StaticResource WindowBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="320"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left column: Files -->
+        <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,8,0">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="FilesHeaderButton" Content="FILES" FontWeight="Bold" Margin="4" Background="Transparent" BorderThickness="0" Click="ChangeButton_Click" />
+                    <Button x:Name="AllButton" Content="ALL" Margin="8,0,0,0" Width="48" Click="AllButton_Click" />
+                    <Button x:Name="RefreshButton" Content="Refresh" Margin="6,0,0,0" Width="64" Click="RefreshButton_Click" />
+                    <Button x:Name="ChangeButton" Content="CHANGE" Margin="6,0,0,0" Width="72" Click="ChangeButton_Click" />
+                </StackPanel>
+
+                <ListView x:Name="FilesListView" Margin="0,8,0,0" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource CardBorderBrush}" Foreground="{StaticResource PrimaryTextBrush}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <CheckBox IsChecked="{Binding Included, Mode=TwoWay}" Margin="4" Checked="FileInclude_Checked" Unchecked="FileInclude_Checked"/>
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="6,0,0,0">
+                                    <TextBlock.ToolTip>
+                                        <ToolTip Content="{Binding EstimatedTokens, StringFormat=~{0} tokens}" />
+                                    </TextBlock.ToolTip>
+                                </TextBlock>
+                                <Button Content="{Binding Mode}" Click="ToggleMode_Click" Margin="8,0,0,0" Padding="6" Style="{StaticResource ModeToggleButton}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+        </Border>
+
+        <!-- Right column: Cards -->
+        <StackPanel Grid.Row="0" Grid.Column="1">
+            <Button x:Name="SettingsButton" Content="⚙" Width="36" Height="28" HorizontalAlignment="Right" Margin="0,0,0,8" Click="SettingsButton_Click" />
+            <Border Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,0,0,8">
+                <StackPanel>
+                    <TextBlock Text="Context &amp; Goal" FontWeight="Bold" FontSize="14" />
+                    <TextBlock Text="Text_From_Clipboard" Margin="0,8,0,4" FontWeight="SemiBold" Style="{StaticResource MutedLabel}" />
+                    <TextBox x:Name="PreambleText" Height="160" TextWrapping="Wrap" AcceptsReturn="True"/>
+                    <TextBlock Text="TASK / QUERY" Margin="0,8,0,4" FontWeight="SemiBold" />
+                    <TextBox x:Name="TaskText" Height="80" TextWrapping="Wrap" AcceptsReturn="True"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,0,0,8">
+                <StackPanel>
+                    <TextBlock Text="Pack Summary" FontWeight="Bold" FontSize="14" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Files Selected:" Width="120" />
+                        <TextBlock x:Name="FilesSelectedText" Text="0" FontWeight="Bold" />
+                        <TextBlock x:Name="EstimatedTokensText" Text="ESTIMATED TOKENS: ~0" FontWeight="Bold" Margin="12,0,0,0" />
+                        <CheckBox x:Name="FileTreeToggle" Content="FILE TREE" Margin="24,0,0,0" Checked="FileTreeToggle_Changed" Unchecked="FileTreeToggle_Changed" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+
+        <!-- Bottom action bar: reserved Auto row so these never get clipped -->
+        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <TextBlock x:Name="CompileStatusText" Text="" VerticalAlignment="Center" Margin="0,0,12,0" />
+            <Button x:Name="CompileButton" Content="Compile &amp; Check Errors" Margin="0,0,8,0" Click="CompileButton_Click" />
+            <Button x:Name="GenerateButton" Content="GENERATE PROMPT" Style="{StaticResource PrimaryButtonStyle}" Click="GenerateButton_Click" />
+        </StackPanel>
+    </Grid>
+</Window>
