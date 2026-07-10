@@ -25,23 +25,16 @@ release can be traced back to the exact commit that produced it.
 Requires Windows 10/11. The published build is self-contained (bundles its
 own .NET 8 runtime), so no separate .NET install is required.
 
-## Setup: connect it to your B4X IDE
+## Usage
 
-1. In B4A or B4J: **Tools → IDE Options → External Tools**
-2. Add a new tool:
-
-   | Field | Value |
-   |---|---|
-   | Title | B4X Context |
-   | Command | path to `B4XContext.exe` |
-   | Parameters | `"%FILE%" "%LINE%"` |
-   | Run Mode | Hidden |
-
-3. Optionally assign a keyboard shortcut under **Tools → IDE Options →
-   Keyboard Shortcuts**.
-4. Or skip External Tools entirely: just leave the app running, select code
-   in the IDE, press `Ctrl+C`, and it's captured automatically (global
-   Ctrl+C capture, see Features below).
+1. Launch `B4XContext.exe` and leave it running in the background.
+2. In the B4X IDE, select any code and press **Ctrl+C** — the app captures it
+   automatically via a global keyboard hook and populates the context box.
+3. Press **Ctrl+Shift+P** (configurable in Settings) to bring the app window
+   to the foreground.
+4. Scan your project folder, pick which modules to include (Skeleton or Full),
+   optionally compile to attach errors, and click **GENERATE PROMPT** to copy
+   the markdown bundle to your clipboard.
 
 ## Features
 
@@ -56,15 +49,12 @@ own .NET 8 runtime), so no separate .NET install is required.
 
 ## Building from source
 
-```
-git clone <this repo>
+git clone this repo
 cd B4XContext
 dotnet build -c Release
-```
 
 Requires the .NET 8 SDK.
 
 ## License
 
 MIT
-
