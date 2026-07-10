@@ -13,7 +13,6 @@ CI: `.github/workflows/release.yml` — triggers on `v*` tag push, builds self-c
 
 ## Architecture
 
-```
 b4x_context.csproj         — .NET 8 WPF app (net8.0-windows), single-file publish
 b4x_context.slnx           — single-project solution (slnx format)
 ├── Engine/                — B4X language toolchain (no external deps)
@@ -34,7 +33,6 @@ b4x_context.slnx           — single-project solution (slnx format)
 ├── MainWindow.xaml(.cs)   — UI: file list, text boxes, compile + generate buttons
 ├── HotkeySettingsWindow.xaml(.cs) — global hotkey config dialog
 └── App.xaml               — dark theme resources, WPF styles
-```
 
 ## Key behaviors
 

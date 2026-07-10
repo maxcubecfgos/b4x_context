@@ -35,15 +35,14 @@ namespace b4x_context
         private uint _hotkeyKey = 0;
         private string _settingsPath;
         private List<ProjectFile> _files = new List<ProjectFile>();
-        private string _projectRoot;
-        private string _projectFile;
-        private string _lastCompileText;
+        private string? _projectRoot;
+        private string? _lastCompileText;
         // Tracks the raw parsed result of the last build. Null = no build has been run yet.
-        private Dictionary<string, object> _lastBuildResult;
-        private string _activeFile;
+        private Dictionary<string, object>? _lastBuildResult;
+        private string? _activeFile;
         private int _activeLine = 1;
-        private string _activeSubName;
-        private string _activeCode;
+        private string? _activeSubName;
+        private string? _activeCode;
 
         // Expose the observable-ish list to the UI binding
         public System.Collections.ObjectModel.ObservableCollection<ProjectFile> FilesCollection { get; } = new System.Collections.ObjectModel.ObservableCollection<ProjectFile>();
@@ -64,7 +63,7 @@ namespace b4x_context
         private const int VK_C = 0x43;
 
         private IntPtr _hookId = IntPtr.Zero;
-        private LowLevelKeyboardProc _proc;
+        private LowLevelKeyboardProc? _proc;
 
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -89,7 +88,7 @@ namespace b4x_context
             _proc = HookCallback;
             using var curProcess = System.Diagnostics.Process.GetCurrentProcess();
             using var curModule = curProcess.MainModule;
-            _hookId = SetWindowsHookEx(WH_KEYBOARD_LL, _proc, GetModuleHandle(curModule.ModuleName), 0);
+            _hookId = SetWindowsHookEx(WH_KEYBOARD_LL, _proc!, GetModuleHandle(curModule!.ModuleName!), 0);
         }
 
         private void UnhookKeyboard()
@@ -237,7 +236,7 @@ namespace b4x_context
                     try
                     {
                         var dir = Path.GetDirectoryName(_settingsPath);
-                        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                        if (!Directory.Exists(dir!)) Directory.CreateDirectory(dir!);
                         var obj = new { Modifiers = newMods, Key = newKey };
                         File.WriteAllText(_settingsPath, JsonSerializer.Serialize(obj));
                     }
@@ -298,7 +297,7 @@ namespace b4x_context
             try
             {
                 var dir = Path.GetDirectoryName(_settingsPath);
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                if (!Directory.Exists(dir!)) Directory.CreateDirectory(dir!);
 
                 if (!File.Exists(_settingsPath))
                 {
@@ -312,7 +311,7 @@ namespace b4x_context
                 var root = doc.RootElement;
                 var mods = root.GetProperty("Modifiers").GetString();
                 var key = root.GetProperty("Key").GetString();
-                ParseHotkey(mods, key);
+                ParseHotkey(mods ?? "Control,Shift", key ?? "P");
             }
             catch
             {
@@ -456,7 +455,7 @@ namespace b4x_context
         {
             // Determine whether to include compile errors in the bundle.
             // Only include when a build has actually run and produced errors (or a fatal runner error).
-            string compileErrorsToInclude = null;
+            string? compileErrorsToInclude = null;
             if (_lastBuildResult != null)
             {
                 if (_lastBuildResult.TryGetValue("fatal_error", out var fat))
@@ -475,7 +474,7 @@ namespace b4x_context
             }
 
             var md = BundleBuilder.BuildMarkdown(PreambleText.Text, TaskText.Text, _files, includeFileTree: FileTreeToggle.IsChecked == true,
-                activeCode: PreambleText.Text, activeFile: _activeFile, activeSub: _activeSubName, compileErrors: compileErrorsToInclude);
+                activeCode: PreambleText.Text, activeFile: _activeFile!, activeSub: _activeSubName!, compileErrors: compileErrorsToInclude!);
             BundleBuilder.CopyToClipboard(md);
             GenerateButton.Content = "Copied!";
             var t = new System.Timers.Timer(1200) { AutoReset = false };
@@ -491,8 +490,8 @@ namespace b4x_context
             CompileStatusText.Foreground = (System.Windows.Media.Brush)FindResource("MutedTextBrush");
 
             // Proper flow: find project file then builder
-            var projFile = ProjectScanner.FindProjectFile(_projectRoot);
-            var builder = BuilderLocator.LocateBuilder(_projectRoot);
+            var projFile = ProjectScanner.FindProjectFile(_projectRoot!);
+            var builder = BuilderLocator.LocateBuilder(_projectRoot!);
             if (string.IsNullOrEmpty(builder) || string.IsNullOrEmpty(projFile))
             {
                 CompileStatusText.Text = "Builder not found";
@@ -501,7 +500,7 @@ namespace b4x_context
                 return;
             }
 
-            Dictionary<string, object> parsed = null;
+            Dictionary<string, object>? parsed = null;
             try
             {
                 parsed = await System.Threading.Tasks.Task.Run(() => BuilderRunner.RunBuild(builder, projFile, 300));
@@ -564,8 +563,8 @@ namespace b4x_context
             }
 
             // Visual feedback based on success/errors
-            bool success = parsed.ContainsKey("success") && parsed["success"] is bool b && b;
-            var errorsList = parsed.ContainsKey("errors") && parsed["errors"] is System.Collections.IEnumerable ? parsed["errors"] as System.Collections.IEnumerable : null;
+            bool success = parsed != null && parsed.ContainsKey("success") && parsed["success"] is bool b && b;
+            var errorsList = parsed != null && parsed.ContainsKey("errors") && parsed["errors"] is System.Collections.IEnumerable ? parsed["errors"] as System.Collections.IEnumerable : null;
             int errCount = 0;
             if (errorsList != null)
             {
