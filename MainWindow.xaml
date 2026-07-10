@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:b4x_context"
         mc:Ignorable="d"
-        Title="B4X_Context" Width="1000" Height="700" MinWidth="900" MinHeight="620"
+        Title="B4X_Context" Width="1050" Height="720" MinWidth="920" MinHeight="640"
         Background="{StaticResource WindowBackgroundBrush}"
         TextOptions.TextFormattingMode="Ideal"
         TextOptions.TextRenderingMode="ClearType">
@@ -17,9 +17,11 @@
         </Grid.RowDefinitions>
 
         <!-- ============================================================
-             Top header bar
+             TOP HEADER
              ============================================================ -->
-        <Border Grid.Row="0" Background="{StaticResource HeaderBackgroundBrush}" Padding="14,10" BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="{StaticResource HeaderBackgroundBrush}"
+                BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1"
+                Padding="16,11">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -28,30 +30,31 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="◆" FontSize="16" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <TextBlock Text="B4X_CONTEXT" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
-                    <Border Background="{StaticResource CardBorderBrush}" CornerRadius="3" Padding="5,1,5,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                    <Border Background="{StaticResource AccentBrush}" CornerRadius="4" Width="8" Height="22" Margin="0,0,10,0" Opacity="0.7" />
+                    <TextBlock Text="B4X_CONTEXT" FontSize="15" FontWeight="Bold" VerticalAlignment="Center" />
+                    <Border Background="{StaticResource BadgeBrush}" CornerRadius="4" Padding="6,1,6,2" Margin="10,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="bundle" FontSize="10" Foreground="{StaticResource MutedTextBrush}" FontWeight="SemiBold" />
                     </Border>
                 </StackPanel>
 
-                <Button Grid.Column="2" x:Name="SettingsButton" Content="⚙" Width="32" Height="28"
-                        FontSize="16" Padding="0" ToolTip="Hotkey settings"
-                        Click="SettingsButton_Click" />
+                <Button Grid.Column="2" x:Name="SettingsButton" Content="⚙" Width="30" Height="28"
+                        FontSize="15" Padding="0" Background="Transparent" BorderBrush="{StaticResource DividerBrush}"
+                        ToolTip="Hotkey settings" Click="SettingsButton_Click" />
             </Grid>
         </Border>
 
         <!-- ============================================================
-             Main content area
+             MAIN CONTENT
              ============================================================ -->
-        <Grid Grid.Row="1" Margin="12,12,12,0">
+        <Grid Grid.Row="1" Margin="14,14,14,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="340" />
+                <ColumnDefinition Width="360" />
+                <ColumnDefinition Width="14" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <!-- ============================================================
-                 Left column: Files panel
+                 LEFT — FILES PANEL
                  ============================================================ -->
             <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Padding="0">
                 <Grid>
@@ -60,8 +63,10 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <!-- Files header toolbar -->
-                    <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1" Padding="10,8">
+                    <!-- Toolbar -->
+                    <Border Grid.Row="0" Background="{StaticResource HeaderBackgroundBrush}"
+                            BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1"
+                            Padding="10,7" CornerRadius="10,10,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
@@ -71,53 +76,65 @@
                             </Grid.ColumnDefinitions>
 
                             <Button Grid.Column="0" x:Name="FilesHeaderButton" Click="ChangeButton_Click"
-                                    Background="Transparent" BorderThickness="0" Padding="0"
+                                    Background="Transparent" BorderThickness="0" Padding="4,2"
                                     ToolTip="Click to open a B4X project folder">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="▸" FontSize="14" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="FILES" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" />
+                                    <TextBlock Text="▼" FontSize="10" VerticalAlignment="Center"
+                                               Foreground="{StaticResource AccentBrush}" Margin="0,0,8,0" />
+                                    <TextBlock Text="PROJECT FILES" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
 
-                            <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                <Button x:Name="AllButton" Content="ALL" MinWidth="36" Margin="0,0,4,0" Padding="6,3" FontSize="11" Click="AllButton_Click" />
-                                <Button x:Name="RefreshButton" Content="⟳" MinWidth="30" Padding="4,3" FontSize="13" ToolTip="Rescan project folder" Click="RefreshButton_Click" />
-                            </StackPanel>
+                            <Button Grid.Column="2" x:Name="AllButton" Content="ALL" MinWidth="34"
+                                    Margin="0,0,4,0" Padding="6,2" FontSize="11"
+                                    Click="AllButton_Click" />
+                            <Button Grid.Column="3" x:Name="RefreshButton" Content="↻" MinWidth="28"
+                                    Padding="4,2" FontSize="13" ToolTip="Rescan project folder"
+                                    Click="RefreshButton_Click" />
                         </Grid>
                     </Border>
 
                     <!-- Files list -->
-                    <ListView x:Name="FilesListView" Grid.Row="1" Margin="0" BorderThickness="0"
-                              Background="{StaticResource CardBackgroundBrush}"
-                              Foreground="{StaticResource PrimaryTextBrush}">
+                    <ListView x:Name="FilesListView" Grid.Row="1" Margin="0" Background="{StaticResource CardBackgroundBrush}">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Grid MinHeight="28">
+                                <Grid MinHeight="40">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
-                                    <CheckBox Grid.Column="0" IsChecked="{Binding Included, Mode=TwoWay}"
-                                              Margin="6,0,0,0" VerticalAlignment="Center"
+                                    <!-- Checkbox -->
+                                    <CheckBox Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                                              IsChecked="{Binding Included, Mode=TwoWay}"
+                                              Margin="4,0,0,0" VerticalAlignment="Center"
                                               Checked="FileInclude_Checked" Unchecked="FileInclude_Checked" />
 
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"
-                                               Margin="8,0,6,0" TextTrimming="CharacterEllipsis"
-                                               FontSize="12.5" FontFamily="Consolas">
-                                        <TextBlock.ToolTip>
-                                            <ToolTip>
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" />
-                                                    <TextBlock Text="{Binding EstimatedTokens, StringFormat=~{0} tokens}"
-                                                               Style="{StaticResource CaptionTextStyle}" />
-                                                </StackPanel>
-                                            </ToolTip>
-                                        </TextBlock.ToolTip>
-                                    </TextBlock>
+                                    <!-- Extension badge (colored by file type) -->
+                                    <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                                            Style="{StaticResource FileTypeBadge}" Margin="6,0,0,0">
+                                        <TextBlock Text="{Binding Kind}" FontSize="8.5" FontWeight="Bold"
+                                                   Foreground="#FF1A1C2A" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                    </Border>
 
-                                    <Button Grid.Column="2" Content="{Binding Mode}" Click="ToggleMode_Click"
+                                    <!-- File name + directory hierarchy -->
+                                    <StackPanel Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Margin="8,0,6,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" FontSize="13"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                   FontWeight="Medium" />
+                                        <TextBlock Text="{Binding Directory}" Style="{StaticResource DirectoryTextStyle}"
+                                                   Margin="0,1,0,0" />
+                                    </StackPanel>
+
+                                    <!-- Mode toggle (Skeleton/Full) -->
+                                    <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="3"
+                                            Content="{Binding Mode}" Click="ToggleMode_Click"
                                             Margin="0,0,6,0" VerticalAlignment="Center"
                                             Style="{StaticResource ModeToggleButton}" />
                                 </Grid>
@@ -128,70 +145,104 @@
             </Border>
 
             <!-- ============================================================
-                 Right column: Cards stack
+                 RIGHT — CARDS
                  ============================================================ -->
-            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+            <StackPanel Grid.Column="2">
 
-                <!-- Card: Context & Goal -->
-                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,10">
+                <!-- CARD: Context & Goal -->
+                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="Context &amp; Goal" Style="{StaticResource HeaderTextStyle}" />
                         <Border Style="{StaticResource SectionDivider}" />
 
-                        <TextBlock Margin="0,0,0,4" FontSize="12" FontWeight="SemiBold">
-                            <Run Text="❖" Foreground="{StaticResource AccentBrush}" />
-                            <Run Text=" Working Context" />
+                        <TextBlock Style="{StaticResource SubHeaderTextStyle}" Margin="0,0,0,2">
+                            <Run Text="❖" Foreground="{StaticResource AccentBrush}" FontSize="14" />
+                            <Run Text="  Working Context" />
                         </TextBlock>
-                        <TextBlock Text="Auto-captured via global Ctrl+C" Style="{StaticResource CaptionTextStyle}" Margin="16,0,0,6" />
-                        <TextBox x:Name="PreambleText" Height="160" TextWrapping="Wrap" AcceptsReturn="True" />
+                        <TextBlock Text="Auto-captured via global Ctrl + C" Style="{StaticResource CaptionTextStyle}" Margin="22,0,0,8" />
+                        <Grid>
+                            <TextBox x:Name="PreambleText" Height="160" TextWrapping="Wrap" TextChanged="PreambleOrTask_TextChanged" />
+                            <TextBlock Text="Specific context (paste code, docs, or notes here)…"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       Margin="12,10,12,0" VerticalAlignment="Top" HorizontalAlignment="Left"
+                                       IsHitTestVisible="False" TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=PreambleText}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
 
                         <Border Style="{StaticResource SectionDivider}" Margin="0,12,0,8" />
 
-                        <TextBlock Margin="0,0,0,4" FontSize="12" FontWeight="SemiBold">
-                            <Run Text="▸" Foreground="{StaticResource AccentBrush}" />
-                            <Run Text=" Task / Query" />
+                        <TextBlock Style="{StaticResource SubHeaderTextStyle}" Margin="0,0,0,6">
+                            <Run Text="▸" Foreground="{StaticResource AccentBrush}" FontSize="14" />
+                            <Run Text="  Task / Query" />
                         </TextBlock>
-                        <TextBox x:Name="TaskText" Height="80" TextWrapping="Wrap" AcceptsReturn="True" />
+                        <Grid>
+                            <TextBox x:Name="TaskText" Height="80" TextWrapping="Wrap" TextChanged="PreambleOrTask_TextChanged" />
+                            <TextBlock Text="What should the AI do with this context?"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       Margin="12,10,12,0" VerticalAlignment="Top" HorizontalAlignment="Left"
+                                       IsHitTestVisible="False" TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=TaskText}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
                     </StackPanel>
                 </Border>
 
-                <!-- Card: Pack Summary -->
-                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,0">
+                <!-- CARD: Pack Summary -->
+                <Border Style="{StaticResource CardBorderStyle}" Padding="14">
                     <StackPanel>
                         <TextBlock Text="Pack Summary" Style="{StaticResource HeaderTextStyle}" />
-                        <Border Style="{StaticResource SectionDivider}" />
+                        <Border Style="{StaticResource SectionDivider}" Margin="0,10,0,12" />
 
-                        <Grid Margin="0,4,0,0">
+                        <!-- Stats badges -->
+                        <Grid Margin="0,0,0,4">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <Border Background="{StaticResource BadgeBrush}" CornerRadius="4" Padding="8,3,8,4" Margin="0,0,0,6">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Files:" FontSize="12" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,6,0" />
-                                        <TextBlock x:Name="FilesSelectedText" Text="0" FontSize="14" FontWeight="Bold" />
-                                    </StackPanel>
-                                </Border>
+                            <Border Grid.Column="0" Background="{StaticResource BadgeBrush}" CornerRadius="6" Padding="10,4,10,5" Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="FILES" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{StaticResource MutedTextBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="FilesSelectedText" Text="0" Style="{StaticResource BadgeNumberStyle}" />
+                                </StackPanel>
+                            </Border>
 
-                                <Border Background="{StaticResource BadgeBrush}" CornerRadius="4" Padding="8,3,8,4" Margin="8,0,0,6">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Tokens:" FontSize="12" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,6,0" />
-                                        <TextBlock x:Name="EstimatedTokensText" Text="~0" FontSize="14" FontWeight="Bold" />
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
+                            <Border Grid.Column="1" Background="{StaticResource BadgeBrush}" CornerRadius="6" Padding="10,4,10,5">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="TOKENS" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{StaticResource MutedTextBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="EstimatedTokensText" Text="~0" Style="{StaticResource BadgeNumberStyle}" />
+                                </StackPanel>
+                            </Border>
                         </Grid>
 
-                        <!-- Token usage bar (decorative) -->
-                        <Grid Height="4" Margin="2,2,2,6">
-                            <Border Height="4" CornerRadius="2" Background="{StaticResource CardBorderBrush}" />
-                            <Border x:Name="TokenBarFill" Height="4" CornerRadius="2" HorizontalAlignment="Left" Width="0"
-                                    Background="{StaticResource AccentBrush}" />
-                        </Grid>
+                        <!-- Token usage bar (decorative strip) -->
+                        <Border Height="3" CornerRadius="2" Background="{StaticResource DividerBrush}" Margin="2,10,2,6" />
 
-                        <CheckBox x:Name="FileTreeToggle" Content="Include file tree" Margin="0,4,0,0"
+                        <!-- File tree toggle (modern switch) -->
+                        <CheckBox x:Name="FileTreeToggle" Content="Include file tree in prompt"
+                                  Style="{StaticResource ToggleSwitchStyle}" Margin="0,6,0,0"
                                   Checked="FileTreeToggle_Changed" Unchecked="FileTreeToggle_Changed" />
                     </StackPanel>
                 </Border>
@@ -200,10 +251,11 @@
         </Grid>
 
         <!-- ============================================================
-             Bottom action bar
+             BOTTOM STATUS BAR
              ============================================================ -->
-        <Border Grid.Row="2" Background="{StaticResource HeaderBackgroundBrush}" BorderBrush="{StaticResource DividerBrush}"
-                BorderThickness="0,1,0,0" Padding="14,8,14,10" Margin="0,12,0,0">
+        <Border Grid.Row="2" Background="{StaticResource StatusBarBackgroundBrush}"
+                BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,1,0,0"
+                Padding="16,9,16,10" Margin="0,14,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -211,17 +263,24 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Ellipse x:Name="StatusIndicator" Width="8" Height="8" Fill="{StaticResource MutedTextBrush}" Margin="0,0,6,0" Visibility="Collapsed" />
-                    <TextBlock x:Name="CompileStatusText" Text="" VerticalAlignment="Center" FontSize="12" />
-                </StackPanel>
+                <!-- Build status with visible indicator -->
+                <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}"
+                        CornerRadius="7" Padding="12,7,16,7" BorderBrush="{StaticResource CardBorderBrush}"
+                        BorderThickness="1.5" HorizontalAlignment="Left" MinWidth="130">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="10" Height="10" Fill="{StaticResource MutedTextBrush}" Margin="0,0,10,0" />
+                        <TextBlock x:Name="CompileStatusText" Text="Ready" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
 
-                <Button Grid.Column="1" x:Name="CompileButton" Content="Compile &amp; Check Errors"
-                        Margin="0,0,8,0" MinWidth="120" Style="{StaticResource SecondaryButtonStyle}"
+                <Button Grid.Column="1" x:Name="CompileButton" Content="  Compile &amp; Check  "
+                        Margin="0,0,8,0" Padding="12,5" FontSize="12"
+                        Style="{StaticResource SecondaryButtonStyle}"
                         Click="CompileButton_Click" />
 
-                <Button Grid.Column="2" x:Name="GenerateButton" Content="▶  GENERATE PROMPT"
-                        MinWidth="130" Style="{StaticResource PrimaryButtonStyle}"
+                <Button Grid.Column="2" x:Name="GenerateButton" Content="▶  Generate Prompt"
+                        Padding="14,7" Style="{StaticResource PrimaryButtonStyle}"
+                        IsEnabled="False"
                         Click="GenerateButton_Click" />
             </Grid>
         </Border>

@@ -40,9 +40,7 @@ namespace b4x_context
         // Tracks the raw parsed result of the last build. Null = no build has been run yet.
         private Dictionary<string, object>? _lastBuildResult;
         private string? _activeFile;
-        private int _activeLine = 1;
         private string? _activeSubName;
-        private string? _activeCode;
 
         // Expose the observable-ish list to the UI binding
         public System.Collections.ObjectModel.ObservableCollection<ProjectFile> FilesCollection { get; } = new System.Collections.ObjectModel.ObservableCollection<ProjectFile>();
@@ -290,6 +288,22 @@ namespace b4x_context
             FilesSelectedText.Text = selected.ToString();
             // Update total estimated tokens
             UpdateEstimatedTokens();
+            UpdateGenerateButtonState();
+        }
+
+        // Generate Prompt requires a Task/Query, plus some form of context:
+        // either Working Context text, or at least one included file.
+        private void UpdateGenerateButtonState()
+        {
+            bool hasTask = !string.IsNullOrWhiteSpace(TaskText?.Text);
+            bool hasContextText = !string.IsNullOrWhiteSpace(PreambleText?.Text);
+            bool hasSelectedFiles = _files != null && _files.Any(f => f.Included);
+            GenerateButton.IsEnabled = hasTask && (hasContextText || hasSelectedFiles);
+        }
+
+        private void PreambleOrTask_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            UpdateGenerateButtonState();
         }
 
         private void LoadHotkeySettings()
@@ -607,7 +621,6 @@ namespace b4x_context
             _projectRoot = folder;
             _activeFile = null;
             _activeSubName = null;
-            _activeCode = null;
 
             _files = ProjectScanner.ScanProject(folder);
             FilesCollection.Clear();
