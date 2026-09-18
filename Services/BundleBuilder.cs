@@ -104,6 +104,14 @@ namespace B4XContext.Services
                             sb.AppendLine(skeleton);
                             sb.AppendLine("```");
                         }
+                        else if (f.Mode == FileMode.Custom)
+                        {
+                            var items = GetItems(f, txt);
+                            var (customCode, _) = Engine.B4xGranularBuilder.BuildCustom(txt, items, f.Name);
+                            sb.AppendLine("```b4x");
+                            sb.AppendLine(customCode);
+                            sb.AppendLine("```");
+                        }
                         else
                         {
                             sb.AppendLine("```b4x");
@@ -121,6 +129,17 @@ namespace B4XContext.Services
             }
 
             return sb.ToString();
+        }
+
+        public static List<ModuleItem> GetItems(ProjectFile f, string txt)
+        {
+            if (!f.HasItems)
+            {
+                var (root, _) = Engine.B4xParser.Parse(txt);
+                var extracted = Engine.B4xItemExtractor.ExtractItems(txt, root);
+                foreach (var it in extracted) f.Items.Add(it);
+            }
+            return f.Items.ToList();
         }
 
         public static string BuildAsciiTree(IEnumerable<string> paths)
