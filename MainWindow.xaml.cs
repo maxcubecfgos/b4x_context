@@ -391,6 +391,12 @@ namespace b4x_context
                     var skeleton = SkeletonGenerator.GenerateModuleSkeleton(txt, snodes, Enumerable.Empty<string>());
                     return Math.Max(0, skeleton.Length / 4);
                 }
+                else if (f.Mode == B4XContext.Models.FileMode.Custom)
+                {
+                    var items = BundleBuilder.GetItems(f, txt);
+                    var (_, chars) = B4xGranularBuilder.BuildCustom(txt, items, f.Name);
+                    return Math.Max(0, chars / 4);
+                }
                 else
                 {
                     return Math.Max(0, txt.Length / 4);
@@ -448,8 +454,54 @@ namespace b4x_context
         {
             if (sender is System.Windows.Controls.Button btn && btn.DataContext is ProjectFile pf)
             {
-                pf.Mode = pf.Mode == B4XContext.Models.FileMode.Skeleton ? B4XContext.Models.FileMode.Full : B4XContext.Models.FileMode.Skeleton;
+                if (pf.Mode == B4XContext.Models.FileMode.Skeleton)
+                    pf.Mode = B4XContext.Models.FileMode.Full;
+                else if (pf.Mode == B4XContext.Models.FileMode.Full)
+                    pf.Mode = (pf.Kind == "bas") ? B4XContext.Models.FileMode.Custom : B4XContext.Models.FileMode.Skeleton;
+                else
+                    pf.Mode = B4XContext.Models.FileMode.Skeleton;
                 // Refresh list view
+                FilesListView.Items.Refresh();
+                UpdateEstimatedTokens();
+            }
+        }
+
+        private void ToggleExpand_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.DataContext is ProjectFile pf)
+            {
+                EnsureItems(pf);
+                pf.IsExpanded = !pf.IsExpanded;
+                FilesListView.Items.Refresh();
+                UpdateEstimatedTokens();
+            }
+        }
+
+        private void EnsureItems(ProjectFile pf)
+        {
+            if (pf.HasItems || pf.Kind != "bas") return;
+            try
+            {
+                var txt = CodeUtils.ReadTextSafely(pf.Path);
+                BundleBuilder.GetItems(pf, txt);
+            }
+            catch { }
+        }
+
+        private void Item_Checked(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.CheckBox cb && cb.DataContext is ModuleItem item)
+            {
+                item.IsSelected = cb.IsChecked == true;
+            }
+            UpdateEstimatedTokens();
+        }
+
+        private void ResetCustom_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.DataContext is ProjectFile pf)
+            {
+                pf.ResetCustom();
                 FilesListView.Items.Refresh();
                 UpdateEstimatedTokens();
             }

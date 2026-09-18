@@ -98,45 +98,191 @@
                     <ListView x:Name="FilesListView" Grid.Row="1" Margin="0" Background="{StaticResource CardBackgroundBrush}">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Grid MinHeight="40">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
+                                <Grid Margin="0,1">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Chevron expander -->
+                                    <Button Grid.Row="0" Grid.Column="0"
+                                            Click="ToggleExpand_Click"
+                                            Width="22" Height="22" Margin="0,0,2,0"
+                                            VerticalAlignment="Center"
+                                            ToolTip="Expand granular selection">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                <Setter Property="Background" Value="Transparent" />
+                                                <Setter Property="BorderThickness" Value="0" />
+                                                <Setter Property="Padding" Value="0" />
+                                                <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+                                                <Setter Property="Content" Value="▸" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                        <Setter Property="Content" Value="▾" />
+                                                        <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding HasItems}" Value="False">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
 
                                     <!-- Checkbox -->
-                                    <CheckBox Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                                    <CheckBox Grid.Row="0" Grid.Column="1"
                                               IsChecked="{Binding Included, Mode=TwoWay}"
-                                              Margin="4,0,0,0" VerticalAlignment="Center"
+                                              Margin="2,0,0,0" VerticalAlignment="Center"
                                               Checked="FileInclude_Checked" Unchecked="FileInclude_Checked" />
 
                                     <!-- Extension badge (colored by file type) -->
-                                    <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                                    <Border Grid.Row="0" Grid.Column="2"
                                             Style="{StaticResource FileTypeBadge}" Margin="6,0,0,0">
                                         <TextBlock Text="{Binding Kind}" FontSize="8.5" FontWeight="Bold"
                                                    Foreground="#FF1A1C2A" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                     </Border>
 
                                     <!-- File name + directory hierarchy -->
-                                    <StackPanel Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Margin="8,0,6,0" VerticalAlignment="Center">
+                                    <StackPanel Grid.Row="0" Grid.Column="3" Margin="8,0,6,0" VerticalAlignment="Center" MinHeight="40">
                                         <TextBlock Text="{Binding Name}" FontSize="13"
                                                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
                                                    FontWeight="Medium" />
                                         <TextBlock Text="{Binding Directory}" Style="{StaticResource DirectoryTextStyle}"
-                                                   Margin="0,1,0,0" />
+                                                   Margin="0,1,0,0" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
 
-                                    <!-- Mode toggle (Skeleton/Full) -->
-                                    <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="3"
+                                    <!-- Mode toggle (Skeleton/Full/Custom) -->
+                                    <Button Grid.Row="0" Grid.Column="4"
                                             Content="{Binding Mode}" Click="ToggleMode_Click"
-                                            Margin="0,0,6,0" VerticalAlignment="Center"
+                                            Margin="0,0,4,0" VerticalAlignment="Center"
                                             Style="{StaticResource ModeToggleButton}" />
+
+                                    <!-- Reset selection -->
+                                    <Button Grid.Row="0" Grid.Column="5"
+                                            Click="ResetCustom_Click"
+                                            Margin="0,0,6,0" VerticalAlignment="Center"
+                                            Style="{StaticResource ReselectionButton}" />
+
+                                    <!-- Expandable items panel -->
+                                    <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="5"
+                                          Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}"
+                                          Background="{StaticResource ItemPanelBrush}" CornerRadius="6"
+                                          Margin="6,0,8,6" Padding="10,8">
+                                        <StackPanel>
+                                            <StackPanel>
+                                                <TextBlock Text="SUBS" FontSize="10" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,2">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasSubs}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <ItemsControl ItemsSource="{Binding ItemsSubs}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <CheckBox Content="{Binding Signature}"
+                                                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                      Checked="Item_Checked" Unchecked="Item_Checked"
+                                                                      FontSize="11.5" FontFamily="Consolas" Margin="2,1" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+
+                                            <StackPanel Margin="0,8,0,0">
+                                                <TextBlock Text="VARIABLES" FontSize="10" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,2">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasVariables}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <ItemsControl ItemsSource="{Binding ItemsVariables}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <CheckBox Content="{Binding Signature}"
+                                                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                      Checked="Item_Checked" Unchecked="Item_Checked"
+                                                                      FontSize="11.5" FontFamily="Consolas" Margin="2,1" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+
+                                            <StackPanel Margin="0,8,0,0">
+                                                <TextBlock Text="TYPES" FontSize="10" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,2">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasTypes}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <ItemsControl ItemsSource="{Binding ItemsTypes}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <CheckBox Content="{Binding Signature}"
+                                                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                      Checked="Item_Checked" Unchecked="Item_Checked"
+                                                                      FontSize="11.5" FontFamily="Consolas" Margin="2,1" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+
+                                            <StackPanel Margin="0,8,0,0">
+                                                <TextBlock Text="REGIONS" FontSize="10" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,2">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasRegions}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <ItemsControl ItemsSource="{Binding ItemsRegions}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <CheckBox Content="{Binding Signature}"
+                                                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                      Checked="Item_Checked" Unchecked="Item_Checked"
+                                                                      FontSize="11.5" FontFamily="Consolas" Margin="2,1" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>

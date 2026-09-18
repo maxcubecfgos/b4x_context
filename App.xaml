@@ -32,6 +32,7 @@
         <!-- Mode tints -->
         <Color x:Key="SkeletonTint">#FFCFE0FB</Color>
         <Color x:Key="FullTint">#FFD3ECDA</Color>
+        <Color x:Key="CustomTint">#FFE0D4F5</Color>
 
         <!-- Semantic status -->
         <Color x:Key="StatusSuccessColor">#FF2F9E58</Color>
@@ -86,6 +87,8 @@
         <!-- Mode -->
         <SolidColorBrush x:Key="SkeletonBrush" Color="{StaticResource SkeletonTint}" />
         <SolidColorBrush x:Key="FullBrush" Color="{StaticResource FullTint}" />
+        <SolidColorBrush x:Key="CustomBrush" Color="{StaticResource CustomTint}" />
+        <SolidColorBrush x:Key="ItemPanelBrush" Color="{StaticResource CardHoverColor}" />
 
         <!-- Status -->
         <SolidColorBrush x:Key="StatusSuccessBrush" Color="{StaticResource StatusSuccessColor}" />
@@ -122,6 +125,9 @@
         <!-- ============================================================
              STYLES
              ============================================================ -->
+
+        <!-- Boolean → Visibility converter -->
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
         <!-- Card container -->
         <Style x:Key="CardBorderStyle" TargetType="Border">
@@ -285,6 +291,24 @@
             <Setter Property="FontSize" Value="12" />
         </Style>
 
+        <!-- Reset selection (visible only in Custom mode) -->
+        <Style x:Key="ReselectionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+            <Setter Property="Padding" Value="4,1" />
+            <Setter Property="MinWidth" Value="26" />
+            <Setter Property="FontSize" Value="9.5" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="Content" Value="reset" />
+            <Setter Property="ToolTip" Value="Clear selection and switch back to Skeleton" />
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Mode}" Value="Custom">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- ============================================================
              TOGGLE SWITCH — modern iOS-style CheckBox
              ============================================================ -->
@@ -423,6 +447,10 @@
                 <DataTrigger Binding="{Binding Mode}" Value="Full">
                     <Setter Property="Background" Value="{StaticResource FullBrush}" />
                     <Setter Property="BorderBrush" Value="{StaticResource FullBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Mode}" Value="Custom">
+                    <Setter Property="Background" Value="{StaticResource CustomBrush}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource CustomBrush}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
