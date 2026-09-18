@@ -1,4 +1,6 @@
 using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace B4XContext.Models
 {
@@ -10,7 +12,7 @@ namespace B4XContext.Models
         Region
     }
 
-    public class ModuleItem
+    public class ModuleItem : INotifyPropertyChanged
     {
         public ModuleItemKind Kind { get; set; }
         public string Name { get; set; }
@@ -18,7 +20,13 @@ namespace B4XContext.Models
         public int StartLine { get; set; }
         public int EndLine { get; set; }
         public string Container { get; set; } = "";
-        public bool IsSelected { get; set; }
+
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set { if (_isSelected == value) return; _isSelected = value; OnPropertyChanged(); }
+        }
 
         public string Group =>
             Kind switch
@@ -28,5 +36,12 @@ namespace B4XContext.Models
                 ModuleItemKind.Type => "TYPES",
                 _ => "REGIONS",
             };
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private void OnPropertyChanged([CallerMemberName] string name = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
     }
 }

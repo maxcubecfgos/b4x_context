@@ -457,11 +457,9 @@ namespace b4x_context
                 if (pf.Mode == B4XContext.Models.FileMode.Skeleton)
                     pf.Mode = B4XContext.Models.FileMode.Full;
                 else if (pf.Mode == B4XContext.Models.FileMode.Full)
-                    pf.Mode = (pf.Kind == "bas") ? B4XContext.Models.FileMode.Custom : B4XContext.Models.FileMode.Skeleton;
+                    pf.Mode = pf.IsCodeFile ? B4XContext.Models.FileMode.Custom : B4XContext.Models.FileMode.Skeleton;
                 else
                     pf.Mode = B4XContext.Models.FileMode.Skeleton;
-                // Refresh list view
-                FilesListView.Items.Refresh();
                 UpdateEstimatedTokens();
             }
         }
@@ -472,14 +470,13 @@ namespace b4x_context
             {
                 EnsureItems(pf);
                 pf.IsExpanded = !pf.IsExpanded;
-                FilesListView.Items.Refresh();
                 UpdateEstimatedTokens();
             }
         }
 
         private void EnsureItems(ProjectFile pf)
         {
-            if (pf.HasItems || pf.Kind != "bas") return;
+            if (pf.HasItems || !pf.IsCodeFile) return;
             try
             {
                 var txt = CodeUtils.ReadTextSafely(pf.Path);
@@ -502,7 +499,6 @@ namespace b4x_context
             if (sender is System.Windows.Controls.Button btn && btn.DataContext is ProjectFile pf)
             {
                 pf.ResetCustom();
-                FilesListView.Items.Refresh();
                 UpdateEstimatedTokens();
             }
         }

@@ -76,7 +76,7 @@
                             </Grid.ColumnDefinitions>
 
                             <Button Grid.Column="0" x:Name="FilesHeaderButton" Click="ChangeButton_Click"
-                                    Background="Transparent" BorderThickness="0" Padding="4,2"
+                                    Padding="10,6" Margin="0,0,6,0"
                                     ToolTip="Click to open a B4X project folder">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="▼" FontSize="10" VerticalAlignment="Center"
@@ -130,7 +130,7 @@
                                                         <Setter Property="Content" Value="▾" />
                                                         <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
                                                     </DataTrigger>
-                                                    <DataTrigger Binding="{Binding HasItems}" Value="False">
+                                                    <DataTrigger Binding="{Binding IsCodeFile}" Value="False">
                                                         <Setter Property="Visibility" Value="Collapsed" />
                                                     </DataTrigger>
                                                 </Style.Triggers>

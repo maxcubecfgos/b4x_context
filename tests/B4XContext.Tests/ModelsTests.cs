@@ -48,5 +48,17 @@ namespace B4XContext.Tests
             Assert.False(pf.HasTypes);
             Assert.False(pf.HasRegions);
         }
+
+        [Fact]
+        public void IsCodeFile_covers_code_extensions_only()
+        {
+            Assert.True(new ProjectFile("x.bas") { Kind = "bas" }.IsCodeFile);
+            Assert.True(new ProjectFile("x.b4a") { Kind = "b4a" }.IsCodeFile);
+            Assert.True(new ProjectFile("x.b4j") { Kind = "b4j" }.IsCodeFile);
+            Assert.True(new ProjectFile("x.b4i") { Kind = "b4i" }.IsCodeFile);
+            Assert.False(new ProjectFile("x.bal") { Kind = "bal" }.IsCodeFile);
+            Assert.False(new ProjectFile("x.bjl") { Kind = "bjl" }.IsCodeFile);
+            Assert.False(new ProjectFile("x.bil") { Kind = "bil" }.IsCodeFile);
+        }
     }
 }
