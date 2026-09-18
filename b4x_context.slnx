@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="b4x_context.csproj" />
+  <Project Path="tests\B4XContext.Tests\B4XContext.Tests.csproj" />
 </Solution>

@@ -20,6 +20,15 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Keep the test project out of the app project's default ourselves globbing -->
+    <Compile Remove="tests\**" />
+    <None Remove="tests\**" />
+    <Content Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+    <Page Remove="tests\**" />
+  </ItemGroup>
+
   <!-- Publish-time defaults for single-file, self-contained, optimized Windows builds -->
   <PropertyGroup>
     <!-- Default to Release when no configuration supplied -->
