@@ -12,6 +12,7 @@ obj/
 Release/
 Debug/
 packages/
+publish/
 
 # NuGet
 *.nupkg
