@@ -32,9 +32,8 @@ https://dotnet.microsoft.com/download/dotnet/10.0 if you don't have it.
 ## Usage
 
 1. Launch `B4XContext.exe` and leave it running in the background.
-2. In the B4X IDE (or anywhere), select any code and press **Ctrl+C** — the
-   app captures it automatically via a global keyboard hook and populates the
-   context box.
+2. Copy any text (in the B4X IDE or anywhere), then use the **PASTE** button
+   in the preamble box to pull it from the clipboard on demand.
 3. Press **Ctrl+Shift+P** (configurable) to bring the app window to the
    foreground.
 4. **Scan** your project folder. The file tree loads instantly, grouped by
@@ -75,7 +74,8 @@ https://dotnet.microsoft.com/download/dotnet/10.0 if you don't have it.
 - Per-file Skeleton / Full / Custom modes with live token estimates
 - Optional compile step (B4ABuilder.exe / B4JBuilder.exe) with structured,
   readable errors attached to the bundle
-- Global Ctrl+C capture — copy code anywhere, it lands in the app automatically
+- **PASTE** button — manual clipboard paste into the preamble box (no global
+  keyboard hook, clipboard is only read when you click it)
 - Configurable global hotkey to bring the app to the foreground instantly
 - Settings stored at `%APPDATA%\B4XContext\settings.json`
 - Dark theme

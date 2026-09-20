@@ -5,6 +5,7 @@
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource WindowBackgroundBrush}"
+        Foreground="{StaticResource PrimaryTextBrush}"
         TextOptions.TextFormattingMode="Ideal">
     <Grid Margin="16">
         <Grid.RowDefinitions>

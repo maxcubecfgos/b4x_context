@@ -8,6 +8,7 @@
         Title="B4X_Context" Width="1050" Height="720" MinWidth="920" MinHeight="640"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBackgroundBrush}"
+        Foreground="{StaticResource PrimaryTextBrush}"
         TextOptions.TextFormattingMode="Ideal"
         TextOptions.TextRenderingMode="ClearType">
     <Grid>
@@ -72,7 +73,8 @@
                                     ToolTip="Open a B4X project folder"
                                     Click="ChangeButton_Click">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock x:Name="ChangeButtonText" Text="Open" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="ChangeButtonText" Text="Open" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                                 </StackPanel>
                             </Button>
 
@@ -117,6 +119,12 @@
                                                         <Setter TargetName="FolderIcon" Property="Fill" Value="White" />
                                                         <Setter TargetName="TitleText" Property="Foreground" Value="{StaticResource AccentBrush}" />
                                                         <Setter TargetName="SubText" Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="IconCircle" Property="Background" Value="{StaticResource AccentDarkHoverBrush}" />
+                                                        <Setter TargetName="FolderIcon" Property="Fill" Value="White" />
+                                                        <Setter TargetName="TitleText" Property="Foreground" Value="{StaticResource AccentDarkHoverBrush}" />
+                                                        <Setter TargetName="SubText" Property="Foreground" Value="{StaticResource AccentDarkHoverBrush}" />
                                                     </Trigger>
                                                     </ControlTemplate.Triggers>
                                             </ControlTemplate>
@@ -357,13 +365,13 @@
                                                                 <ColumnDefinition Width="Auto" />
                                                             </Grid.ColumnDefinitions>
                                                             <StackPanel Orientation="Horizontal" Grid.Column="0">
-                                                                <TextBlock Text="▸" FontSize="10"
+                                                                <TextBlock x:Name="GroupChevron" Text="▸" FontSize="10"
                                                                            Foreground="{StaticResource AccentBrush}"
                                                                            VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                                <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="SemiBold"
+                                                                <TextBlock x:Name="GroupName" Text="{Binding Name}" FontSize="12.5" FontWeight="SemiBold"
                                                                            Foreground="{StaticResource PrimaryTextBrush}"
                                                                            VerticalAlignment="Center" />
-                                                                <TextBlock Text="Project root" FontSize="12.5" FontWeight="SemiBold"
+                                                                <TextBlock x:Name="GroupRootLabel" Text="Project root" FontSize="12.5" FontWeight="SemiBold"
                                                                            Foreground="{StaticResource PrimaryTextBrush}"
                                                                            VerticalAlignment="Center">
                                                                     <TextBlock.Style>
@@ -378,17 +386,23 @@
                                                                     </TextBlock.Style>
                                                                 </TextBlock>
                                                             </StackPanel>
-                                                            <TextBlock Grid.Column="1" Text="{Binding ItemCount}" FontSize="11"
+                                                            <TextBlock Grid.Column="1" x:Name="GroupCount" Text="{Binding ItemCount}" FontSize="11"
                                                                        Foreground="{StaticResource MutedTextBrush}"
                                                                        VerticalAlignment="Center" Margin="10,0,0,0" />
                                                         </Grid>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter TargetName="bdr" Property="Background" Value="{StaticResource CardHoverBrush}" />
+                                                            <Setter TargetName="GroupChevron" Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                                            <Setter TargetName="GroupName" Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                                            <Setter TargetName="GroupRootLabel" Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                                            <Setter TargetName="GroupCount" Property="Foreground" Value="{StaticResource AccentBrush}" />
                                                         </Trigger>
                                                         <Trigger Property="IsPressed" Value="True">
-                                                            <Setter TargetName="bdr" Property="Background" Value="{StaticResource AccentDarkHoverBrush}" />
+                                                            <Setter TargetName="GroupChevron" Property="Foreground" Value="{StaticResource AccentDarkHoverBrush}" />
+                                                            <Setter TargetName="GroupName" Property="Foreground" Value="{StaticResource AccentDarkHoverBrush}" />
+                                                            <Setter TargetName="GroupRootLabel" Property="Foreground" Value="{StaticResource AccentDarkHoverBrush}" />
+                                                            <Setter TargetName="GroupCount" Property="Foreground" Value="{StaticResource AccentDarkHoverBrush}" />
                                                         </Trigger>
                                                     </ControlTemplate.Triggers>
                                                 </ControlTemplate>
@@ -428,9 +442,28 @@
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Text="PREAMBLE / CONTEXT" FontSize="11" FontWeight="Bold"
                                                Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,4" />
-                                    <Button x:Name="AutoFillButton" Grid.Row="0" Content="Auto-Fill"
-                                            Padding="6,2" FontSize="10" HorizontalAlignment="Right"
-                                            Margin="0,-2,0,4" Click="AutoFillButton_Click" ToolTip="Scans root files (package.json, Cargo.toml, README.md) and appends a generated project context." />
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,-2,0,4">
+                                        <Button x:Name="PasteButton" Style="{StaticResource LinkButtonStyle}"
+                                                Click="PasteButton_Click"
+                                                ToolTip="Paste the clipboard text into the preamble (appends)">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="&#xE77F;" FontFamily="Segoe MDL2 Assets" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                                <TextBlock Text="PASTE" FontSize="10"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button x:Name="AutoFillButton" Style="{StaticResource LinkButtonStyle}"
+                                                Margin="14,0,0,0" Click="AutoFillButton_Click"
+                                                ToolTip="Scans root files (package.json, Cargo.toml, README.md) and appends a generated project context.">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="&#xE945;" FontFamily="Segoe MDL2 Assets" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                                <TextBlock Text="AUTO-FILL" FontSize="10"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
                                     <Grid Grid.Row="1">
                                         <TextBox x:Name="PreambleText" Height="160" TextWrapping="Wrap"
                                                  TextChanged="PreambleOrTask_TextChanged" />

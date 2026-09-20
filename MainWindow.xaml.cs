@@ -77,90 +77,6 @@ namespace b4x_context
             LoadHotkeySettings();
         }
 
-        // Low-level global Ctrl+C watcher implementation (see user-provided exact implementation)
-        private const int WH_KEYBOARD_LL = 13;
-        private const int WM_KEYDOWN = 0x0100;
-        private const int VK_CONTROL = 0x11;
-        private const int VK_C = 0x43;
-
-        private IntPtr _hookId = IntPtr.Zero;
-        private LowLevelKeyboardProc? _proc;
-
-        private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool UnhookWindowsHookEx(IntPtr hhk);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        private static extern IntPtr GetModuleHandle(string lpModuleName);
-
-        [DllImport("user32.dll")]
-        private static extern short GetAsyncKeyState(int vKey);
-
-        private void HookKeyboard()
-        {
-            _proc = HookCallback;
-            using var curProcess = System.Diagnostics.Process.GetCurrentProcess();
-            using var curModule = curProcess.MainModule;
-            _hookId = SetWindowsHookEx(WH_KEYBOARD_LL, _proc!, GetModuleHandle(curModule!.ModuleName!), 0);
-        }
-
-        private void UnhookKeyboard()
-        {
-            if (_hookId != IntPtr.Zero)
-            {
-                UnhookWindowsHookEx(_hookId);
-                _hookId = IntPtr.Zero;
-            }
-        }
-
-        private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
-        {
-            if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN)
-            {
-                int vkCode = Marshal.ReadInt32(lParam);
-                if (vkCode == VK_C && (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0)
-                {
-                    OnGlobalCopyDetected();
-                }
-            }
-            return CallNextHookEx(_hookId, nCode, wParam, lParam);
-        }
-
-        private void OnGlobalCopyDetected()
-        {
-            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            timer.Tick += (s, e) =>
-            {
-                timer.Stop();
-                try
-                {
-                    if (System.Windows.Clipboard.ContainsText())
-                    {
-                        string text = System.Windows.Clipboard.GetText();
-                        // Guard: if the clipboard contains an exported bundle (our own output), skip auto-populating
-                        if (!string.IsNullOrWhiteSpace(text) && text.TrimStart().StartsWith("# Context Bundle", StringComparison.OrdinalIgnoreCase))
-                        {
-                            return;
-                        }
-                        PreambleText.Text = text;
-                    }
-                }
-                catch
-                {
-                    // clipboard can be momentarily locked by another process, just skip
-                }
-            };
-            timer.Start();
-        }
-
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
@@ -171,8 +87,6 @@ namespace b4x_context
             {
                 _hwndSource.AddHook(WndProc);
                 TryRegisterHotkey();
-                // Install keyboard hook to observe Ctrl+C globally
-                HookKeyboard();
             }
         }
 
@@ -298,8 +212,6 @@ namespace b4x_context
                 {
                     _hwndSource.RemoveHook(WndProc);
                 }
-                // Unhook low-level keyboard hook
-                UnhookKeyboard();
                 DisposeWatcher();
             }
             catch { }
@@ -391,7 +303,6 @@ namespace b4x_context
 
         private void MainWindow_Activated(object? sender, EventArgs e)
         {
-            // Disabled: PreambleText should only be updated via global Ctrl+C watcher or manual paste by user.
         }
 
         private TokenEstimate? EstimateTokensForFile(ProjectFile f)
@@ -982,6 +893,26 @@ namespace b4x_context
             UpdateSummary();
         }
 
+        private void PasteButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!System.Windows.Clipboard.ContainsText())
+                {
+                    MessageBox.Show("The clipboard contains no text.", "Paste", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                string clip = System.Windows.Clipboard.GetText();
+                if (string.IsNullOrWhiteSpace(clip))
+                    return;
+                PreambleText.Text = TextUtils.AppendBlock(PreambleText.Text, clip);
+            }
+            catch
+            {
+                MessageBox.Show("Failed to read from the clipboard.", "Paste", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
         private void AutoFillButton_Click(object sender, RoutedEventArgs e)
         {
             if (_files == null || _files.Count == 0)
@@ -995,7 +926,7 @@ namespace b4x_context
                     return;
                 }
                 var current = PreambleText.Text ?? "";
-                PreambleText.Text = string.IsNullOrWhiteSpace(current) ? generated : current + "\n\n" + generated;
+                PreambleText.Text = TextUtils.AppendBlock(current, generated);
             }
             catch
             {

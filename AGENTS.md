@@ -53,7 +53,7 @@ b4x_context.slnx           — single-project solution (slnx format)
 - **File watcher**: `FileSystemWatcher` over the project root (500 ms debounce) auto re-scans preserving selections by path; opening the same folder again also preserves. Loading a different folder resets state.
 - **Builder locator** checks hardcoded paths under `C:\Program Files (x86)\Anywhere Software\` + per-project config override in `b4x_context_config.json` (key: `builder_path`).
 - **Settings** stored at `%APPDATA%\B4XContext\settings.json` (default hotkey: `Ctrl+Shift+P`).
-- **Global Ctrl+C** uses low-level keyboard hook (`WH_KEYBOARD_LL`) — captured text populates the preamble box. App skips own output (bundles start with `# Context Bundle`).
+- **Preamble PASTE button**: reads the clipboard on demand and appends to the preamble box (`Services/TextUtils.AppendBlock`). No global clipboard hook — clipboard is only read when the user clicks PASTE.
 - **Global hotkey** (default `Ctrl+Shift+P`) uses `RegisterHotKey` — brings window to foreground.
 - **Parse error handling**: parser reports unmatched blocks + wrong closer names; errors don't crash but are collected in `ParseIssue` list.
 - **Build timeout**: 300s default, passed via `BuilderRunner.RunBuild(builder, projFile, 300)`.

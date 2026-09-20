@@ -54,10 +54,6 @@
         <Color x:Key="ToggleOnTrackColor">#FF5B7FDE</Color>
         <Color x:Key="ToggleThumbColor">#FFF7F8FB</Color>
 
-        <!-- Neutral button hover/pressed (default & secondary buttons) -->
-        <Color x:Key="ButtonHoverColor">#FFE2E7F1</Color>
-        <Color x:Key="ButtonPressedColor">#FFD3D9E6</Color>
-
         <!-- Selection tint (pale, keeps dark text legible) -->
         <Color x:Key="SelectionTintColor">#FFCFDDF7</Color>
 
@@ -110,10 +106,6 @@
         <SolidColorBrush x:Key="ToggleOnTrackBrush" Color="{StaticResource ToggleOnTrackColor}" />
         <SolidColorBrush x:Key="ToggleThumbBrush" Color="{StaticResource ToggleThumbColor}" />
 
-        <!-- Neutral button hover/pressed -->
-        <SolidColorBrush x:Key="ButtonHoverBrush" Color="{StaticResource ButtonHoverColor}" />
-        <SolidColorBrush x:Key="ButtonPressedBrush" Color="{StaticResource ButtonPressedColor}" />
-
         <!-- Selection tint -->
         <SolidColorBrush x:Key="SelectionTintBrush" Color="{StaticResource SelectionTintColor}" />
 
@@ -148,8 +140,10 @@
         </Style>
 
         <!-- TextBlock defaults -->
+        <!-- NOTE: no Foreground setter here — it would pin every TextBlock to a
+             fixed color and defeat Foreground inheritance from Buttons/ListView
+             (hover effects rely on inheriting the control's Foreground). -->
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="TextWrapping" Value="NoWrap" />
         </Style>
@@ -211,20 +205,14 @@
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
                                               Margin="{TemplateBinding Padding}"
-                                              TextElement.Foreground="{TemplateBinding Foreground}">
-                                <ContentPresenter.Resources>
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                        <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
-                                    </Style>
-                                </ContentPresenter.Resources>
-                            </ContentPresenter>
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource ButtonHoverBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource ButtonPressedBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource AccentDarkHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.5" />
@@ -291,6 +279,46 @@
             <Setter Property="FontSize" Value="12" />
         </Style>
 
+        <!-- Link / ghost text button — prompt-pack-lite style (upper-case accent link).
+             Own template: hover only tints the text, never paints a pill background. -->
+        <Style x:Key="LinkButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="3,1" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter x:Name="Cp"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Cp" Property="Opacity" Value="0.6" />
+                                <Setter Property="Foreground" Value="{StaticResource AccentDarkHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Cp" Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Reset selection (visible only in Custom mode) -->
         <Style x:Key="ReselectionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Background" Value="Transparent" />
@@ -344,7 +372,10 @@
                                 <Setter TargetName="Thumb" Property="Margin" Value="0,0,2,0" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Track" Property="Opacity" Value="0.85" />
+                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource AccentDarkHoverBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -362,6 +393,14 @@
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="Margin" Value="2" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource AccentDarkHoverBrush}" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <!-- ============================================================
@@ -383,7 +422,7 @@
             <Setter Property="MinHeight" Value="36" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource CardHoverBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{StaticResource SelectionTintBrush}" />
