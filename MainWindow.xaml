@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:b4x_context"
         mc:Ignorable="d"
         Title="B4X_Context" Width="1050" Height="720" MinWidth="920" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBackgroundBrush}"
         TextOptions.TextFormattingMode="Ideal"
         TextOptions.TextRenderingMode="ClearType">
@@ -112,7 +113,7 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Chevron expander -->
+                                    <!-- Chevron expander (Custom mode only) -->
                                     <Button Grid.Row="0" Grid.Column="0"
                                             Click="ToggleExpand_Click"
                                             Width="22" Height="22" Margin="0,0,2,0"
@@ -131,6 +132,12 @@
                                                         <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding IsCodeFile}" Value="False">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Mode}" Value="Skeleton">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Mode}" Value="Full">
                                                         <Setter Property="Visibility" Value="Collapsed" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
@@ -172,11 +179,24 @@
                                             Margin="0,0,6,0" VerticalAlignment="Center"
                                             Style="{StaticResource ReselectionButton}" />
 
-                                    <!-- Expandable items panel -->
+                                    <!-- Expandable items panel (Custom mode only) -->
                                     <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="5"
-                                          Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}"
                                           Background="{StaticResource ItemPanelBrush}" CornerRadius="6"
                                           Margin="6,0,8,6" Padding="10,8">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding IsExpanded}" Value="True" />
+                                                            <Condition Binding="{Binding Mode}" Value="Custom" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
                                         <StackPanel>
                                             <StackPanel>
                                                 <TextBlock Text="SUBS" FontSize="10" FontWeight="SemiBold"

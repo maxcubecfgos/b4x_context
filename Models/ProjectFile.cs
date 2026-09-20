@@ -84,6 +84,10 @@ namespace B4XContext.Models
             OnPropertyChanged(nameof(HasVariables));
             OnPropertyChanged(nameof(HasTypes));
             OnPropertyChanged(nameof(HasRegions));
+            OnPropertyChanged(nameof(ItemsSubs));
+            OnPropertyChanged(nameof(ItemsVariables));
+            OnPropertyChanged(nameof(ItemsTypes));
+            OnPropertyChanged(nameof(ItemsRegions));
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

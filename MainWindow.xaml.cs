@@ -460,6 +460,11 @@ namespace b4x_context
                     pf.Mode = pf.IsCodeFile ? B4XContext.Models.FileMode.Custom : B4XContext.Models.FileMode.Skeleton;
                 else
                     pf.Mode = B4XContext.Models.FileMode.Skeleton;
+
+                // Collapse the expanded panel when leaving Custom mode
+                if (pf.Mode != B4XContext.Models.FileMode.Custom)
+                    pf.IsExpanded = false;
+
                 UpdateEstimatedTokens();
             }
         }
