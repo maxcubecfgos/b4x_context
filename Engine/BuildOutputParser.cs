@@ -141,6 +141,8 @@ namespace B4XContext.Engine
             else
             {
                 error["kind"] = "syntax";
+                var fm = ERROR_DESC_RE.Match(firstLine);
+                if (fm.Success) error["message"] = fm.Groups[1].Value.Trim();
                 while (i < lines.Length)
                 {
                     var l = lines[i].Trim();

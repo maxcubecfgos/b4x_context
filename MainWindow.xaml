@@ -560,8 +560,8 @@
                 <!-- Left: Build status + Compile -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- Settings gear -->
-                    <Button x:Name="SettingsButton" Content="⚙" Width="28" Height="26"
-                            FontSize="13" Padding="0" Margin="0,0,10,0"
+                    <Button x:Name="SettingsButton" Content="&#xE713;" Width="28" Height="26"
+                            FontFamily="Segoe MDL2 Assets" FontSize="15" Padding="0" Margin="0,0,10,0"
                             Background="Transparent" BorderBrush="{StaticResource DividerBrush}"
                             ToolTip="Hotkey settings" Click="SettingsButton_Click" />
 

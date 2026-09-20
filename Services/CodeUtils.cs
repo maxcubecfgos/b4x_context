@@ -7,8 +7,12 @@ namespace B4XContext.Services
 {
     public static class CodeUtils
     {
-        private static readonly string[] EncodingsToTry = new[] { "utf-8-sig", "utf-8", "windows-1252", "iso-8859-1" };
         private const string DESIGN_TEXT_MARKER = "@EndOfDesignText@";
+
+        static CodeUtils()
+        {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        }
 
         public static string ReadTextSafely(string path)
         {
@@ -20,20 +24,17 @@ namespace B4XContext.Services
             }
 
             string text = null;
-            foreach (var enc in EncodingsToTry)
+            try
             {
-                try
-                {
-                    var encoding = Encoding.GetEncoding(enc);
-                    text = encoding.GetString(raw);
-                    break;
-                }
-                catch { }
+                text = new UTF8Encoding(false, true).GetString(raw);
             }
+            catch (DecoderFallbackException) { }
 
             if (text == null)
             {
-                text = Encoding.Latin1.GetString(raw);
+                text = Encoding.GetEncoding(1252).GetString(raw);
+                if (text.IndexOf('\uFFFD') >= 0)
+                    text = Encoding.Latin1.GetString(raw);
             }
 
             int idx = text.IndexOf(DESIGN_TEXT_MARKER, StringComparison.Ordinal);

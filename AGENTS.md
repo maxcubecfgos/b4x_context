@@ -4,8 +4,12 @@
 
 ```powershell
 dotnet build -c Release
-dotnet publish -c Release -o publish
+dotnet publish b4x_context.csproj -c Release -o publish
 ```
+
+Publish must target the `.csproj`, not the `.slnx`: `dotnet publish -o` at solution level is
+unsupported (NETSDK1194) and the solution wrapper re-copies the tree-sitter grammars after the
+`PruneUnusedTreeSitterGrammars` target, leaving the unused grammar DLLs (~85 MB extra) in `publish\`.
 
 Release build by default; no Debug config defined. .NET 10 SDK required (net10.0-windows). Windows-only (WPF + WinForms). NuGet: `TreeSitter.DotNet 1.3.0` (per-language `tree-sitter-*.dll` grammars, native win-x64, used for multi-language skeletons) + `SharpToken 2.0.6`. Framework-dependent publish — the target machine needs the **.NET 10 Desktop Runtime** (no embedded runtime, no single-file): this keeps startup fast by avoiding per-launch decompression of a ~700 MB bundle, and `ts_pack_core_ffi.dll` (442 MB) is **not** shipped.
 
