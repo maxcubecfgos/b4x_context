@@ -342,6 +342,65 @@
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
+                        <ListView.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <Button Click="GroupHeader_Click" Background="Transparent" BorderThickness="0"
+                                                Padding="0" Margin="0,6,0,2" Cursor="Hand"
+                                                Style="{StaticResource {x:Type Button}}">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="bdr" Background="{StaticResource HeaderBackgroundBrush}"
+                                                            CornerRadius="6" Padding="10,6" BorderThickness="1"
+                                                            BorderBrush="{StaticResource CardBorderBrush}">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Orientation="Horizontal" Grid.Column="0">
+                                                                <TextBlock Text="▸" FontSize="10"
+                                                                           Foreground="{StaticResource AccentBrush}"
+                                                                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                                <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="SemiBold"
+                                                                           Foreground="{StaticResource PrimaryTextBrush}"
+                                                                           VerticalAlignment="Center" />
+                                                                <TextBlock Text="Project root" FontSize="12.5" FontWeight="SemiBold"
+                                                                           Foreground="{StaticResource PrimaryTextBrush}"
+                                                                           VerticalAlignment="Center">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding Name}" Value="">
+                                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="1" Text="{Binding ItemCount}" FontSize="11"
+                                                                       Foreground="{StaticResource MutedTextBrush}"
+                                                                       VerticalAlignment="Center" Margin="10,0,0,0" />
+                                                        </Grid>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="bdr" Property="Background" Value="{StaticResource CardHoverBrush}" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsPressed" Value="True">
+                                                            <Setter TargetName="bdr" Property="Background" Value="{StaticResource AccentDarkHoverBrush}" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </ListView.GroupStyle>
                     </ListView>
                 </Grid>
             </Border>
@@ -372,6 +431,9 @@
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Text="PREAMBLE / CONTEXT" FontSize="11" FontWeight="Bold"
                                                Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,4" />
+                                    <Button x:Name="AutoFillButton" Grid.Row="0" Content="Auto-Fill"
+                                            Padding="6,2" FontSize="10" HorizontalAlignment="Right"
+                                            Margin="0,-2,0,4" Click="AutoFillButton_Click" ToolTip="Scans root files (package.json, Cargo.toml, README.md) and appends a generated project context." />
                                     <Grid Grid.Row="1">
                                         <TextBox x:Name="PreambleText" Height="160" TextWrapping="Wrap"
                                                  TextChanged="PreambleOrTask_TextChanged" />

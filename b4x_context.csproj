@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -29,7 +29,22 @@
     <Page Remove="tests\**" />
   </ItemGroup>
 
-  <!-- Publish-time defaults for single-file, self-contained, optimized Windows builds -->
+  <ItemGroup>
+    <!-- Keep the spike probe tool out of the app project's default globbing -->
+    <Compile Remove="tools\**" />
+    <None Remove="tools\**" />
+    <Content Remove="tools\**" />
+    <EmbeddedResource Remove="tools\**" />
+    <Page Remove="tools\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Multi-language tree-sitter support (per-language grammars native for win-x64) -->
+    <PackageReference Include="SharpToken" Version="2.0.6" />
+    <PackageReference Include="TreeSitter.DotNet" Version="1.3.0" />
+  </ItemGroup>
+
+  <!-- Publish defaults: framework-dependent folder build (.NET 10 Desktop Runtime required on target) -->
   <PropertyGroup>
     <!-- Default to Release when no configuration supplied -->
     <Configuration Condition="'$(Configuration)'==''">Release</Configuration>
@@ -37,18 +52,13 @@
     <!-- Target Windows x64 runtime by default -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
 
-    <!-- Produce a self-contained single-file exe -->
-    <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
+    <!-- Framework-dependent (user installs .NET Desktop Runtime 10); plain folder output -->
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
 
-    <!-- Trimming and R2R for size and startup improvements -->
-    <!-- Disable trimming when WinForms is in use to avoid NETSDK1175 (WinForms incompatible with trimming) -->
-    <PublishTrimmed Condition="'$(UseWindowsForms)' != 'true'">true</PublishTrimmed>
-    <TrimMode Condition="'$(UseWindowsForms)' != 'true'">link</TrimMode>
-    <!-- Allow trimming on WPF with explicit suppression (use with caution) -->
+    <!-- R2R for faster startup (crossgen compiles app assemblies only in framework-dependent mode) -->
     <_SuppressWpfTrimError>true</_SuppressWpfTrimError>
     <PublishReadyToRun>true</PublishReadyToRun>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
 
     <!-- Disable debug symbols for production publish -->
     <DebugType>none</DebugType>
@@ -57,5 +67,18 @@
   <ItemGroup>
     <None Include=".github\workflows\release.yml" />
   </ItemGroup>
+
+  <!-- Ship only the tree-sitter grammars the app actually uses. TreeSitter.DotNet
+       copies ~30 per-language grammars; the unused ones (~50 MB: verilog, razor,
+       agda, swift, java, ...) are pruned from the publish folder. Normal builds
+       and test runs keep all grammars so the skeleton tests stay green.
+       `tree-sitter.dll` (the core) is NOT matched by the tree-sitter-*.dll glob. -->
+  <Target Name="PruneUnusedTreeSitterGrammars" AfterTargets="Publish">
+    <ItemGroup>
+      <_UnusedGrammar Include="$(PublishDir)tree-sitter-*.dll"
+          Exclude="$(PublishDir)tree-sitter-c.dll;$(PublishDir)tree-sitter-c-sharp.dll;$(PublishDir)tree-sitter-css.dll;$(PublishDir)tree-sitter-go.dll;$(PublishDir)tree-sitter-html.dll;$(PublishDir)tree-sitter-javascript.dll;$(PublishDir)tree-sitter-json.dll;$(PublishDir)tree-sitter-python.dll;$(PublishDir)tree-sitter-rust.dll;$(PublishDir)tree-sitter-tsx.dll;$(PublishDir)tree-sitter-typescript.dll" />
+    </ItemGroup>
+    <Delete Files="@(_UnusedGrammar)" />
+  </Target>
 
 </Project>

@@ -12,6 +12,8 @@ namespace B4XContext.Services
 {
     public static class BundleBuilder
     {
+        private const int MAX_TREE_LINES = 4000;
+
         public static string BuildMarkdown(string preamble, string task, IEnumerable<ProjectFile> files, bool includeFileTree = true,
             string activeCode = null, string activeFile = null, string activeSub = null, string compileErrors = null)
         {
@@ -39,7 +41,7 @@ namespace B4XContext.Services
             {
                 sb.AppendLine("## FILE TREE");
                 sb.AppendLine();
-                var tree = BuildAsciiTree(files.Select(f => f.Path));
+                var tree = BuildAsciiTree(files);
                 sb.AppendLine("```");
                 sb.AppendLine(tree);
                 sb.AppendLine("```");
@@ -78,6 +80,24 @@ namespace B4XContext.Services
                         {
                             sb.AppendLine("```json");
                             sb.AppendLine(decoded);
+                            sb.AppendLine("```");
+                        }
+                    }
+                    else if (f.IsGenericText)
+                    {
+                        var txt = CodeUtils.ReadTextSafely(f.Path);
+                        var fence = LangSupport.FenceTagFor(f.Kind);
+                        if (f.Mode == FileMode.Skeleton)
+                        {
+                            var skeleton = Engine.MultiLangSkeletonizer.Skeletonize(txt, f.Kind).Skeleton;
+                            sb.AppendLine($"```{fence}");
+                            sb.AppendLine(skeleton);
+                            sb.AppendLine("```");
+                        }
+                        else
+                        {
+                            sb.AppendLine($"```{fence}");
+                            sb.AppendLine(txt);
                             sb.AppendLine("```");
                         }
                     }
@@ -142,16 +162,83 @@ namespace B4XContext.Services
             return f.Items.ToList();
         }
 
-        public static string BuildAsciiTree(IEnumerable<string> paths)
+        public static string DisplayPath(ProjectFile f)
         {
-            // Build a simple ASCII tree grouped by common root
-            var grouped = paths.Select(p => p.Replace('\\', '/')).ToList();
-            var sb = new StringBuilder();
-            foreach (var p in grouped.OrderBy(p => p))
+            if (string.IsNullOrEmpty(f.RelativeDirectory))
+                return f.Name;
+            return f.RelativeDirectory + "/" + f.Name;
+        }
+
+        private sealed class TreeNode
+        {
+            public readonly SortedDictionary<string, TreeNode> Children = new SortedDictionary<string, TreeNode>(StringComparer.OrdinalIgnoreCase);
+            public ProjectFile File;
+        }
+
+        public static string BuildAsciiTree(IEnumerable<ProjectFile> files)
+        {
+            var root = new TreeNode();
+            foreach (var f in files)
             {
-                sb.AppendLine(p);
+                var parts = DisplayPath(f).Replace('\\', '/').Split('/');
+                var node = root;
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    if (!node.Children.TryGetValue(parts[i], out var next))
+                    {
+                        next = new TreeNode();
+                        node.Children.Add(parts[i], next);
+                    }
+                    node = next;
+                }
+                node.File = f;
             }
-            return sb.ToString();
+
+            var lines = new List<string>();
+            bool truncated = false;
+            RenderTree(root, null, "", true, true, lines, ref truncated);
+            if (truncated)
+                lines.Add("... tree truncated ...");
+            return string.Join("\n", lines);
+        }
+
+        private static void RenderTree(TreeNode node, string name, string prefix, bool isLast, bool isRoot, List<string> lines, ref bool truncated)
+        {
+            if (truncated) return;
+
+            if (!isRoot)
+            {
+                if (lines.Count >= MAX_TREE_LINES)
+                {
+                    truncated = true;
+                    return;
+                }
+                var connector = isLast ? "\\- " : "|- ";
+                var stats = node.File != null
+                    ? $" ({FormatSize(node.File.Size)}, {node.File.LineCount} lines)"
+                    : "";
+                lines.Add($"{prefix}{connector}{name}{stats}");
+            }
+
+            if (truncated) return;
+
+            var keys = node.Children.Keys.ToList();
+            for (int i = 0; i < keys.Count; i++)
+            {
+                var key = keys[i];
+                var child = node.Children[key];
+                var childLast = i == keys.Count - 1;
+                var childPrefix = isRoot ? "" : prefix + (isLast ? "   " : "|  ");
+                RenderTree(child, key, childPrefix, childLast, false, lines, ref truncated);
+                if (truncated) break;
+            }
+        }
+
+        private static string FormatSize(long bytes)
+        {
+            if (bytes < 1024) return $"{bytes} B";
+            if (bytes < 1024 * 1024) return $"{(bytes / 1024):0} KB";
+            return $"{(bytes / (1024.0 * 1024.0)):0.0} MB";
         }
 
         public static void CopyToClipboard(string text)

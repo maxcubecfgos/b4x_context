@@ -15,13 +15,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET 8
+      - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
-      - name: Publish self-contained single-file exe
-        run: dotnet publish b4x_context.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+      - name: Publish framework-dependent app (folder)
+        run: dotnet publish b4x_context.csproj -c Release -o publish
 
       - name: Zip artifact
         run: Compress-Archive -Path publish\* -DestinationPath B4XContext-${{ github.ref_name }}-win-x64.zip

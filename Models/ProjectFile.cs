@@ -17,15 +17,23 @@ namespace B4XContext.Models
 
     public class ProjectFile : INotifyPropertyChanged
     {
+
         public string Path { get; set; }
         public string Name => System.IO.Path.GetFileName(Path);
         public string Directory => System.IO.Path.GetDirectoryName(Path) ?? "";
+        public string RelativeDirectory { get; set; } = "";
         public string Kind { get; set; } = "file";
+        public long Size { get; set; }
+        public int LineCount { get; set; }
         public ObservableCollection<ModuleItem> Items { get; } = new ObservableCollection<ModuleItem>();
 
         public bool IsCodeFile => Kind == "bas" || Kind == "b4a" || Kind == "b4j" || Kind == "b4i";
 
-        private bool _included = true;
+        public bool IsB4x => IsCodeFile;
+
+        public bool IsGenericText => !IsCodeFile && Kind != "bal" && Kind != "bjl" && Kind != "bil";
+
+        private bool _included = false;
         private FileMode _mode = FileMode.Skeleton;
         private int _estimatedTokens = 0;
         private bool _isExpanded;

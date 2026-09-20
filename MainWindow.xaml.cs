@@ -46,6 +46,25 @@ namespace b4x_context
         private int _totalOriginalLines;
         private int _totalSkeletonLines;
 
+        private readonly struct TokenEstimate
+        {
+            public readonly int Tokens;
+            public readonly int OriginalLines;
+            public readonly int SkeletonLines;
+
+            public TokenEstimate(int tokens, int originalLines, int skeletonLines)
+            {
+                Tokens = tokens;
+                OriginalLines = originalLines;
+                SkeletonLines = skeletonLines;
+            }
+        }
+
+        private readonly Dictionary<string, TokenEstimate> _tokenCache = new Dictionary<string, TokenEstimate>(StringComparer.OrdinalIgnoreCase);
+        private CancellationTokenSource? _estimationCts;
+        private FileSystemWatcher? _watcher;
+        private System.Windows.Threading.DispatcherTimer? _refreshTimer;
+
         // Expose the observable-ish list to the UI binding
         public System.Collections.ObjectModel.ObservableCollection<ProjectFile> FilesCollection { get; } = new System.Collections.ObjectModel.ObservableCollection<ProjectFile>();
 
@@ -281,6 +300,7 @@ namespace b4x_context
                 }
                 // Unhook low-level keyboard hook
                 UnhookKeyboard();
+                DisposeWatcher();
             }
             catch { }
             base.OnClosing(e);
@@ -374,15 +394,26 @@ namespace b4x_context
             // Disabled: PreambleText should only be updated via global Ctrl+C watcher or manual paste by user.
         }
 
-        private int EstimateTokensForFile(ProjectFile f)
+        private TokenEstimate? EstimateTokensForFile(ProjectFile f)
         {
             try
             {
-                if (f == null || !System.IO.File.Exists(f.Path)) return 0;
+                if (f == null || !System.IO.File.Exists(f.Path)) return null;
                 var txt = CodeUtils.ReadTextSafely(f.Path);
+                f.LineCount = txt.Length == 0 ? 0 : txt.Split('\n').Length;
+                if (f.Kind == "bal" || f.Kind == "bjl" || f.Kind == "bil")
+                    return new TokenEstimate(TokenCounter.Count(txt), 0, 0);
+                if (f.IsGenericText)
+                {
+                    if (f.Mode == B4XContext.Models.FileMode.Skeleton)
+                    {
+                        var result = MultiLangSkeletonizer.Skeletonize(txt, f.Kind);
+                        return new TokenEstimate(TokenCounter.Count(result.Skeleton), result.OriginalLines, result.SkeletonLines);
+                    }
+                    return new TokenEstimate(TokenCounter.Count(txt), 0, 0);
+                }
                 if (f.Mode == B4XContext.Models.FileMode.Skeleton)
                 {
-                    // generate skeleton and estimate size + compression stats
                     var (root, issues) = B4xParser.Parse(txt);
                     var nodes = B4xParser.FlattenSubsAndTypes(root);
                     var snodes = nodes.Select(n => new SkeletonGenerator.Node
@@ -394,58 +425,124 @@ namespace b4x_context
                         LeadingComment = n.LeadingComment
                     }).ToList();
                     var result = SkeletonGenerator.GenerateSkeletonResult(txt, snodes, Enumerable.Empty<string>());
-                    _totalOriginalLines += result.OriginalLines;
-                    _totalSkeletonLines += result.SkeletonLines;
-                    return Math.Max(0, result.Skeleton.Length / 4);
+                    return new TokenEstimate(TokenCounter.Count(result.Skeleton), result.OriginalLines, result.SkeletonLines);
                 }
                 else if (f.Mode == B4XContext.Models.FileMode.Custom)
                 {
                     var items = BundleBuilder.GetItems(f, txt);
-                    var (_, chars) = B4xGranularBuilder.BuildCustom(txt, items, f.Name);
-                    return Math.Max(0, chars / 4);
+                    var (code, _) = B4xGranularBuilder.BuildCustom(txt, items, f.Name);
+                    return new TokenEstimate(TokenCounter.Count(code), 0, 0);
                 }
                 else
                 {
-                    return Math.Max(0, txt.Length / 4);
+                    return new TokenEstimate(TokenCounter.Count(txt), 0, 0);
                 }
             }
-            catch { return 0; }
+            catch { return null; }
         }
 
         private void UpdateEstimatedTokens()
         {
+            _estimationCts?.Cancel();
+            var cts = new CancellationTokenSource();
+            _estimationCts = cts;
+
             try
             {
                 int total = 0;
                 _totalOriginalLines = 0;
                 _totalSkeletonLines = 0;
 
-                // Active sub + task
-                var activeLen = (PreambleText.Text ?? string.Empty).Length + (TaskText.Text ?? string.Empty).Length;
-                total += Math.Max(0, activeLen / 4);
+                total += TokenCounter.Count(PreambleText.Text) + TokenCounter.Count(TaskText.Text);
 
+                var pending = new List<ProjectFile>();
                 foreach (var f in FilesCollection)
                 {
                     if (!f.Included) { f.EstimatedTokens = 0; continue; }
-                    f.EstimatedTokens = EstimateTokensForFile(f);
-                    total += f.EstimatedTokens;
+                    if (_tokenCache.TryGetValue(f.Path, out var cached))
+                    {
+                        f.EstimatedTokens = cached.Tokens;
+                        total += cached.Tokens;
+                        _totalOriginalLines += cached.OriginalLines;
+                        _totalSkeletonLines += cached.SkeletonLines;
+                    }
+                    else
+                    {
+                        f.EstimatedTokens = 0;
+                        pending.Add(f);
+                    }
                 }
 
-                // Include file-tree tokens if enabled (use same BuildAsciiTree used for bundle)
                 try
                 {
                     if (FileTreeToggle.IsChecked == true && _files != null && _files.Any())
                     {
-                        var tree = BundleBuilder.BuildAsciiTree(_files.Select(f => f.Path));
+                        var tree = BundleBuilder.BuildAsciiTree(_files);
                         total += Math.Max(0, tree.Length / 4);
                     }
                 }
                 catch { }
 
-                // Update UI
                 EstimatedTokensText.Text = $"~{total}";
+                UpdateCompressionText();
 
-                // Update compression ratio
+                if (cts.IsCancellationRequested || pending.Count == 0)
+                    return;
+
+                Task.Run(() =>
+                {
+                    var locals = new List<(ProjectFile File, TokenEstimate Estimate)>();
+                    foreach (var f in pending)
+                    {
+                        if (cts.IsCancellationRequested) break;
+                        var est = EstimateTokensForFile(f);
+                        if (est == null) continue;
+                        locals.Add((f, est.Value));
+                    }
+
+                    if (cts.IsCancellationRequested) return;
+
+                    try
+                    {
+                        Dispatcher.InvokeAsync(() =>
+                        {
+                            if (cts != _estimationCts) return;
+
+                            foreach (var (file, est) in locals)
+                            {
+                                _tokenCache[file.Path] = est;
+                                file.EstimatedTokens = est.Tokens;
+                                _totalOriginalLines += est.OriginalLines;
+                                _totalSkeletonLines += est.SkeletonLines;
+                            }
+
+                            int t = TokenCounter.Count(PreambleText.Text) + TokenCounter.Count(TaskText.Text);
+                            foreach (var f in FilesCollection)
+                            {
+                                if (!f.Included) continue;
+                                if (_tokenCache.TryGetValue(f.Path, out var c)) t += c.Tokens;
+                            }
+                            try
+                            {
+                                if (FileTreeToggle.IsChecked == true && _files != null && _files.Any())
+                                    t += Math.Max(0, BundleBuilder.BuildAsciiTree(_files).Length / 4);
+                            }
+                            catch { }
+
+                            EstimatedTokensText.Text = $"~{t}";
+                            UpdateCompressionText();
+                        });
+                    }
+                    catch { }
+                });
+            }
+            catch { }
+        }
+
+        private void UpdateCompressionText()
+        {
+            try
+            {
                 var compressionText = this.FindName("CompressionText") as TextBlock;
                 if (compressionText != null)
                 {
@@ -488,6 +585,7 @@ namespace b4x_context
                     pf.IsExpanded = false;
                 }
 
+                _tokenCache.Remove(pf.Path);
                 UpdateEstimatedTokens();
             }
         }
@@ -519,6 +617,11 @@ namespace b4x_context
             {
                 item.IsSelected = cb.IsChecked == true;
             }
+            foreach (var f in FilesCollection)
+            {
+                if (f.Mode == B4XContext.Models.FileMode.Custom && f.HasItems)
+                    _tokenCache.Remove(f.Path);
+            }
             UpdateEstimatedTokens();
         }
 
@@ -527,6 +630,7 @@ namespace b4x_context
             if (sender is System.Windows.Controls.Button btn && btn.DataContext is ProjectFile pf)
             {
                 pf.ResetCustom();
+                _tokenCache.Remove(pf.Path);
                 UpdateEstimatedTokens();
             }
         }
@@ -688,20 +792,64 @@ namespace b4x_context
             }
         }
 
-        private void LoadProjectFolder(string folder)
+        private void LoadProjectFolder(string folder, bool preserveSelection = false)
         {
             if (string.IsNullOrEmpty(folder) || !System.IO.Directory.Exists(folder))
                 return;
+
+            bool sameProject = string.Equals(_projectRoot, folder, StringComparison.OrdinalIgnoreCase);
+            bool effectivePreserve = preserveSelection || sameProject;
 
             // Reset previous state (preserve any user-edited or clipboard-pasted ACTIVE SUB text)
             _projectRoot = folder;
             _activeFile = null;
             _activeSubName = null;
+            _estimationCts?.Cancel();
 
-            _files = ProjectScanner.ScanProject(folder);
+            var scanned = ProjectScanner.ScanProject(folder);
+
+            if (effectivePreserve && _files.Count > 0)
+            {
+                if (_tokenCache.Count > 0)
+                {
+                    var oldSizes = _files.ToDictionary(f => f.Path, f => f.Size, StringComparer.OrdinalIgnoreCase);
+                    var newSizes = scanned.ToDictionary(f => f.Path, f => f.Size, StringComparer.OrdinalIgnoreCase);
+                    foreach (var key in TokenEstimateCache.StaleKeys(oldSizes, newSizes, _tokenCache.Keys.ToList()))
+                        _tokenCache.Remove(key);
+                }
+
+                var oldByPath = _files.ToDictionary(f => f.Path, StringComparer.OrdinalIgnoreCase);
+                foreach (var pf in scanned)
+                {
+                    if (oldByPath.TryGetValue(pf.Path, out var old))
+                    {
+                        pf.Included = old.Included;
+                        pf.Mode = old.Mode;
+                        pf.LineCount = old.LineCount;
+                        foreach (var it in old.Items)
+                            pf.Items.Add(it);
+                    }
+                }
+            }
+            else
+            {
+                _tokenCache.Clear();
+            }
+
+            _files = scanned;
             FilesCollection.Clear();
             foreach (var pf in _files) FilesCollection.Add(pf);
-            FilesListView.ItemsSource = FilesCollection;
+
+            if (!_files.Any(f => f.Included))
+                AutoSelectReadme();
+
+            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(FilesCollection);
+            view.GroupDescriptions.Clear();
+            view.GroupDescriptions.Add(new System.Windows.Data.PropertyGroupDescription(nameof(ProjectFile.RelativeDirectory)));
+            view.SortDescriptions.Clear();
+            view.SortDescriptions.Add(new System.ComponentModel.SortDescription(nameof(ProjectFile.RelativeDirectory), System.ComponentModel.ListSortDirection.Ascending));
+            view.SortDescriptions.Add(new System.ComponentModel.SortDescription(nameof(ProjectFile.Name), System.ComponentModel.ListSortDirection.Ascending));
+            FilesListView.ItemsSource = view;
 
             // Show project-loaded UI (PromptPacker style)
             EmptyStatePanel.Visibility = Visibility.Collapsed;
@@ -711,25 +859,164 @@ namespace b4x_context
             FileCountBadgeBorder.Visibility = Visibility.Visible;
             ChangeButtonText.Text = "Change";
 
+            StartWatcher();
             UpdateSummary();
+        }
+
+        private void AutoSelectReadme()
+        {
+            var readme = _files.FirstOrDefault(f =>
+                f.Kind == "md"
+                && f.Name.Equals("readme.md", StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrEmpty(f.RelativeDirectory));
+            if (readme != null)
+            {
+                readme.Included = true;
+                readme.Mode = B4XContext.Models.FileMode.Full;
+            }
+        }
+
+        private void StartWatcher()
+        {
+            DisposeWatcher();
+            if (string.IsNullOrEmpty(_projectRoot) || !System.IO.Directory.Exists(_projectRoot))
+                return;
+
+            var watcher = new FileSystemWatcher(_projectRoot)
+            {
+                IncludeSubdirectories = true,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size
+            };
+            _watcher = watcher;
+            _refreshTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+
+            void Debounce(object? sender, System.IO.FileSystemEventArgs e)
+            {
+                if (_refreshTimer == null) return;
+                if (_refreshTimer.IsEnabled) _refreshTimer.Stop();
+                _refreshTimer.Start();
+            }
+
+            _refreshTimer.Tick += (s, e) =>
+            {
+                _refreshTimer?.Stop();
+                if (!string.IsNullOrEmpty(_projectRoot))
+                    LoadProjectFolder(_projectRoot, true);
+            };
+
+            try
+            {
+                watcher.Changed += Debounce;
+                watcher.Created += Debounce;
+                watcher.Deleted += Debounce;
+                watcher.Renamed += (s, e) => Debounce(s, e);
+                watcher.EnableRaisingEvents = true;
+            }
+            catch
+            {
+                DisposeWatcher();
+            }
+        }
+
+        private void DisposeWatcher()
+        {
+            if (_watcher != null)
+            {
+                try { _watcher.EnableRaisingEvents = false; }
+                catch { }
+                _watcher.Dispose();
+                _watcher = null;
+            }
+            if (_refreshTimer != null)
+            {
+                _refreshTimer.Stop();
+                _refreshTimer = null;
+            }
         }
 
         private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_projectRoot))
                 return;
-            LoadProjectFolder(_projectRoot);
+            LoadProjectFolder(_projectRoot, true);
         }
 
         private void AllButton_Click(object sender, RoutedEventArgs e)
         {
             if (FilesCollection == null || FilesCollection.Count == 0)
                 return;
-            bool anyUnselected = FilesCollection.Any(f => !f.Included);
-            foreach (var f in FilesCollection)
-                f.Included = anyUnselected;
+            bool allIncluded = FilesCollection.All(f => f.Included);
+            if (!allIncluded)
+            {
+                foreach (var f in FilesCollection)
+                {
+                    f.Included = true;
+                    if (f.Mode == B4XContext.Models.FileMode.Custom)
+                    {
+                        f.Mode = B4XContext.Models.FileMode.Skeleton;
+                        _tokenCache.Remove(f.Path);
+                    }
+                }
+            }
+            else
+            {
+                bool allFull = FilesCollection.All(f => f.Included && f.Mode == B4XContext.Models.FileMode.Full);
+                if (!allFull)
+                {
+                    foreach (var f in FilesCollection)
+                    {
+                        if (f.Mode != B4XContext.Models.FileMode.Full)
+                        {
+                            f.Mode = B4XContext.Models.FileMode.Full;
+                            _tokenCache.Remove(f.Path);
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (var f in FilesCollection)
+                        f.Included = false;
+                }
+            }
             FilesListView.Items.Refresh();
             UpdateSummary();
+        }
+
+        private void AutoFillButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_files == null || _files.Count == 0)
+                return;
+            try
+            {
+                var generated = AutoPreambleGenerator.Generate(_files, path => CodeUtils.ReadTextSafely(path));
+                if (string.IsNullOrEmpty(generated))
+                {
+                    MessageBox.Show("No suitable config files or README found to generate context.", "Auto-Fill", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                var current = PreambleText.Text ?? "";
+                PreambleText.Text = string.IsNullOrWhiteSpace(current) ? generated : current + "\n\n" + generated;
+            }
+            catch
+            {
+                MessageBox.Show("Failed to generate context.", "Auto-Fill", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void GroupHeader_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn
+                && btn.DataContext is System.Windows.Data.CollectionViewGroup group
+                && group.Items != null)
+            {
+                var items = group.Items.Cast<ProjectFile>().ToList();
+                if (items.Count == 0)
+                    return;
+                bool allIncluded = items.All(f => f.Included);
+                foreach (var f in items)
+                    f.Included = !allIncluded;
+                UpdateSummary();
+            }
         }
     }
 }
