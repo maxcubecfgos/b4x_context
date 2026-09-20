@@ -90,7 +90,8 @@
                     <!-- Empty state (shown when no project loaded) -->
                     <Grid x:Name="EmptyStatePanel" Grid.Row="1" Visibility="Visible">
                         <Button Click="ChangeButton_Click" Cursor="Hand"
-                                Background="Transparent" BorderThickness="0">
+                                Background="Transparent" BorderThickness="0"
+                                HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Template">
