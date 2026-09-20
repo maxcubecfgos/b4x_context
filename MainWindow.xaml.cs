@@ -42,6 +42,10 @@ namespace b4x_context
         private string? _activeFile;
         private string? _activeSubName;
 
+        // Compression tracking
+        private int _totalOriginalLines;
+        private int _totalSkeletonLines;
+
         // Expose the observable-ish list to the UI binding
         public System.Collections.ObjectModel.ObservableCollection<ProjectFile> FilesCollection { get; } = new System.Collections.ObjectModel.ObservableCollection<ProjectFile>();
 
@@ -286,6 +290,7 @@ namespace b4x_context
         {
             int selected = _files.Count(f => f.Included);
             FilesSelectedText.Text = selected.ToString();
+            FileCountBadge.Text = _files.Count.ToString();
             // Update total estimated tokens
             UpdateEstimatedTokens();
             UpdateGenerateButtonState();
@@ -377,7 +382,7 @@ namespace b4x_context
                 var txt = CodeUtils.ReadTextSafely(f.Path);
                 if (f.Mode == B4XContext.Models.FileMode.Skeleton)
                 {
-                    // generate skeleton and estimate size
+                    // generate skeleton and estimate size + compression stats
                     var (root, issues) = B4xParser.Parse(txt);
                     var nodes = B4xParser.FlattenSubsAndTypes(root);
                     var snodes = nodes.Select(n => new SkeletonGenerator.Node
@@ -388,8 +393,10 @@ namespace b4x_context
                         Name = n.Name,
                         LeadingComment = n.LeadingComment
                     }).ToList();
-                    var skeleton = SkeletonGenerator.GenerateModuleSkeleton(txt, snodes, Enumerable.Empty<string>());
-                    return Math.Max(0, skeleton.Length / 4);
+                    var result = SkeletonGenerator.GenerateSkeletonResult(txt, snodes, Enumerable.Empty<string>());
+                    _totalOriginalLines += result.OriginalLines;
+                    _totalSkeletonLines += result.SkeletonLines;
+                    return Math.Max(0, result.Skeleton.Length / 4);
                 }
                 else if (f.Mode == B4XContext.Models.FileMode.Custom)
                 {
@@ -410,6 +417,9 @@ namespace b4x_context
             try
             {
                 int total = 0;
+                _totalOriginalLines = 0;
+                _totalSkeletonLines = 0;
+
                 // Active sub + task
                 var activeLen = (PreambleText.Text ?? string.Empty).Length + (TaskText.Text ?? string.Empty).Length;
                 total += Math.Max(0, activeLen / 4);
@@ -433,18 +443,23 @@ namespace b4x_context
                 catch { }
 
                 // Update UI
-                var totalText = $"ESTIMATED TOKENS: ~{total}";
-                // Ensure there's a place to show this: update FilesSelectedText's sibling area
-                FilesSelectedText.Text = FilesSelectedText.Text; // keep existing
-                // Add or update a badge/TextBlock named EstimatedTokensText if present, else create dynamic
-                var existing = this.FindName("EstimatedTokensText") as TextBlock;
-                if (existing != null)
+                EstimatedTokensText.Text = $"~{total}";
+
+                // Update compression ratio
+                var compressionText = this.FindName("CompressionText") as TextBlock;
+                if (compressionText != null)
                 {
-                    existing.Text = totalText;
-                }
-                else
-                {
-                    // try to find Pack Summary panel and add if possible (best-effort, not creating UI elements here)
+                    if (_totalOriginalLines > 0 && _totalSkeletonLines > 0)
+                    {
+                        int ratio = (int)Math.Round((1.0 - (double)_totalSkeletonLines / _totalOriginalLines) * 100);
+                        compressionText.Text = $"{ratio}% reduced";
+                        compressionText.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        compressionText.Text = "";
+                        compressionText.Visibility = Visibility.Collapsed;
+                    }
                 }
             }
             catch { }
@@ -461,9 +476,17 @@ namespace b4x_context
                 else
                     pf.Mode = B4XContext.Models.FileMode.Skeleton;
 
-                // Collapse the expanded panel when leaving Custom mode
-                if (pf.Mode != B4XContext.Models.FileMode.Custom)
+                if (pf.Mode == B4XContext.Models.FileMode.Custom)
+                {
+                    // Auto-expand: ensure items are loaded and panel is open
+                    EnsureItems(pf);
+                    pf.IsExpanded = true;
+                }
+                else
+                {
+                    // Collapse when leaving Custom mode
                     pf.IsExpanded = false;
+                }
 
                 UpdateEstimatedTokens();
             }
@@ -679,6 +702,15 @@ namespace b4x_context
             FilesCollection.Clear();
             foreach (var pf in _files) FilesCollection.Add(pf);
             FilesListView.ItemsSource = FilesCollection;
+
+            // Show project-loaded UI (PromptPacker style)
+            EmptyStatePanel.Visibility = Visibility.Collapsed;
+            FilesListView.Visibility = Visibility.Visible;
+            AllButton.Visibility = Visibility.Visible;
+            RefreshButton.Visibility = Visibility.Visible;
+            FileCountBadgeBorder.Visibility = Visibility.Visible;
+            ChangeButtonText.Text = "Change";
+
             UpdateSummary();
         }
 
