@@ -42,9 +42,10 @@ namespace B4XContext.Tests
             var (code, chars) = BuildWithSelection(selectFoo: true, selectRegion: false);
 
             Assert.Contains("'Header comment", code);
-            Assert.Contains("Sub Process_Globals", code);
+            Assert.DoesNotContain("Dim counter As Int", code);
             Assert.Contains("### Index of 'Mod.bas': 5 items (1 selected)", code);
             Assert.Contains("- [x] Sub Foo(x As Int) — line 6", code);
+            Assert.DoesNotContain("- [ ]", code);
             Assert.Contains("## SELECTED ITEMS", code);
             Assert.Contains("Log(x)", code);
             Assert.DoesNotContain("Log(\"bar\")", code);
@@ -71,13 +72,31 @@ namespace B4XContext.Tests
         }
 
         [Fact]
-        public void BuildCustom_with_no_selection_still_has_index_but_no_selected_section()
+        public void BuildCustom_globals_block_is_single_selectable_item()
+        {
+            var (root, _) = B4xParser.Parse(Sample);
+            var items = B4xItemExtractor.ExtractItems(Sample, root);
+            items.First(i => i.Name == "Process_Globals").IsSelected = true;
+
+            var (code, _) = B4xGranularBuilder.BuildCustom(Sample, items, "Mod.bas");
+
+            Assert.Contains("- [x] Sub Process_Globals — line 2", code);
+            Assert.Contains("Dim counter As Int", code);
+            Assert.Contains("End Sub", code);
+            Assert.DoesNotContain("Log(x)", code);
+        }
+
+        [Fact]
+        public void BuildCustom_with_no_selection_has_no_index_and_minimal_output()
         {
             var (code, _) = BuildWithSelection(selectFoo: false, selectRegion: false);
 
             Assert.DoesNotContain("## SELECTED ITEMS", code);
-            Assert.Contains("### Index of 'Mod.bas': 5 items (0 selected)", code);
+            Assert.DoesNotContain("Index of", code);
+            Assert.DoesNotContain("[ ]", code);
+            Assert.DoesNotContain("Sub Foo", code);
             Assert.Contains("<- EOF module ->", code);
+            Assert.True(code.Length < 500);
         }
     }
 }

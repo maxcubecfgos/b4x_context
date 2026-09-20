@@ -61,15 +61,14 @@ namespace B4XContext.Engine
         public static string BuildIndex(IEnumerable<ModuleItem> items, string moduleName)
         {
             var list = items.OrderBy(i => i.StartLine).ThenBy(i => i.Kind).ToList();
-            if (list.Count == 0) return "";
-            int selected = list.Count(i => i.IsSelected);
+            var sel = list.Where(i => i.IsSelected).ToList();
+            if (sel.Count == 0) return "";
             var sb = new StringBuilder();
-            sb.AppendLine($"### Index of '{moduleName}': {list.Count} items ({selected} selected)");
-            foreach (var it in list)
+            sb.AppendLine($"### Index of '{moduleName}': {list.Count} items ({sel.Count} selected)");
+            foreach (var it in sel)
             {
-                string mark = it.IsSelected ? "x" : " ";
                 string sig = string.IsNullOrEmpty(it.Signature) ? it.Name : it.Signature;
-                string line = $"  - [{mark}] {sig} — line {it.StartLine}";
+                string line = $"  - [x] {sig} — line {it.StartLine}";
                 if (it.Container.Length > 0) line += $" (in {it.Container})";
                 sb.AppendLine(line);
             }

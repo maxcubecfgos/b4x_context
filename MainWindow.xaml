@@ -118,10 +118,7 @@
                                                         <Setter TargetName="TitleText" Property="Foreground" Value="{StaticResource AccentBrush}" />
                                                         <Setter TargetName="SubText" Property="Foreground" Value="{StaticResource AccentBrush}" />
                                                     </Trigger>
-                                                    <Trigger Property="IsPressed" Value="True">
-                                                        <Setter TargetName="Bd" Property="Background" Value="#FFE8EDF2" />
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
+                                                    </ControlTemplate.Triggers>
                                             </ControlTemplate>
                                         </Setter.Value>
                                     </Setter>

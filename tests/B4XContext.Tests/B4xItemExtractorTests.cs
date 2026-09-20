@@ -42,23 +42,17 @@ namespace B4XContext.Tests
 
             var items = B4xItemExtractor.ExtractItems(Sample, root);
 
-            Assert.Equal(9, items.Count);
+            Assert.Equal(7, items.Count);
 
             var subs = items.Where(i => i.Kind == ModuleItemKind.Sub).ToList();
-            Assert.Equal(3, subs.Count);
+            Assert.Equal(4, subs.Count);
             Assert.Contains(subs, s => s.Name == "Foo" && s.Signature == "Sub Foo(x As Int) As Boolean");
             Assert.Contains(subs, s => s.Name == "Bar" && s.Container == "");
             Assert.Contains(subs, s => s.Name == "Zap" && s.Container == "Helpers");
-            Assert.DoesNotContain(subs, s => s.Name == "Process_Globals");
+            Assert.Contains(subs, s => s.Name == "Process_Globals" && s.Signature == "Sub Process_Globals" && s.StartLine == 6 && s.EndLine == 10);
 
             var vars = items.Where(i => i.Kind == ModuleItemKind.Variable).ToList();
-            Assert.Equal(3, vars.Count);
-            Assert.Equal("appName", vars[0].Name);
-            Assert.Equal("Var appName As String = \"Demo\"", vars[0].Signature);
-            Assert.Equal("counter", vars[1].Name);
-            Assert.Equal("Var counter As Int", vars[1].Signature);
-            Assert.Equal("secret", vars[2].Name);
-            Assert.Equal(9, vars[2].StartLine);
+            Assert.Empty(vars);
 
             var types = items.Where(i => i.Kind == ModuleItemKind.Type).ToList();
             var t = Assert.Single(types);
