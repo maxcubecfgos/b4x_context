@@ -8,12 +8,16 @@ namespace B4XContext.Engine
 {
     public static class B4xGranularBuilder
     {
-        public static (string code, int estimatedChars) BuildCustom(string source, List<ModuleItem> items, string moduleName)
+        public static (string code, int estimatedChars) BuildCustom(string source, List<ModuleItem> items, string moduleName,
+            int maxHeaderLines = 40)
         {
             var lines = (source ?? "").Split(new[] { "\n" }, StringSplitOptions.None);
             var ordered = items.OrderBy(i => i.StartLine).ThenBy(i => i.Kind).ToList();
+
+            // A selected Region (B4X) or Type (Dart class/mixin/enum/...) already covers every
+            // item declared inside it, so its members are not emitted twice.
             var regionNames = new HashSet<string>(
-                ordered.Where(i => i.IsSelected && i.Kind == ModuleItemKind.Region).Select(i => i.Name),
+                ordered.Where(i => i.IsSelected && (i.Kind == ModuleItemKind.Region || i.Kind == ModuleItemKind.Type)).Select(i => i.Name),
                 StringComparer.OrdinalIgnoreCase);
 
             var toEmit = new List<ModuleItem>();
@@ -30,7 +34,7 @@ namespace B4XContext.Engine
             }
 
             int firstItemLine = ordered.Count > 0 ? ordered.Min(i => i.StartLine) : lines.Length + 1;
-            int headerCount = Math.Min(Math.Max(0, firstItemLine - 1), 40);
+            int headerCount = Math.Min(Math.Max(0, firstItemLine - 1), maxHeaderLines);
             var sb = new StringBuilder();
             for (int li = 0; li < headerCount && li < lines.Length; li++)
                 sb.AppendLine(lines[li]);

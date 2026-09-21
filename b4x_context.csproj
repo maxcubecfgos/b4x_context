@@ -70,13 +70,13 @@
 
   <!-- Ship only the tree-sitter grammars the app actually uses. TreeSitter.DotNet
        copies ~30 per-language grammars; the unused ones (~50 MB: verilog, razor,
-       agda, swift, java, ...) are pruned from the publish folder. Normal builds
+       agda, swift, ruby, ...) are pruned from the publish folder. Normal builds
        and test runs keep all grammars so the skeleton tests stay green.
        `tree-sitter.dll` (the core) is NOT matched by the tree-sitter-*.dll glob. -->
   <Target Name="PruneUnusedTreeSitterGrammars" AfterTargets="Publish">
     <ItemGroup>
       <_UnusedGrammar Include="$(PublishDir)tree-sitter-*.dll"
-          Exclude="$(PublishDir)tree-sitter-c.dll;$(PublishDir)tree-sitter-c-sharp.dll;$(PublishDir)tree-sitter-css.dll;$(PublishDir)tree-sitter-go.dll;$(PublishDir)tree-sitter-html.dll;$(PublishDir)tree-sitter-javascript.dll;$(PublishDir)tree-sitter-json.dll;$(PublishDir)tree-sitter-python.dll;$(PublishDir)tree-sitter-rust.dll;$(PublishDir)tree-sitter-tsx.dll;$(PublishDir)tree-sitter-typescript.dll" />
+          Exclude="$(PublishDir)tree-sitter-c.dll;$(PublishDir)tree-sitter-c-sharp.dll;$(PublishDir)tree-sitter-css.dll;$(PublishDir)tree-sitter-go.dll;$(PublishDir)tree-sitter-html.dll;$(PublishDir)tree-sitter-java.dll;$(PublishDir)tree-sitter-javascript.dll;$(PublishDir)tree-sitter-json.dll;$(PublishDir)tree-sitter-python.dll;$(PublishDir)tree-sitter-rust.dll;$(PublishDir)tree-sitter-tsx.dll;$(PublishDir)tree-sitter-typescript.dll" />
     </ItemGroup>
     <Delete Files="@(_UnusedGrammar)" />
   </Target>

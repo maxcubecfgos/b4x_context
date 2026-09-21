@@ -42,7 +42,8 @@ https://dotnet.microsoft.com/download/dotnet/10.0 if you don't have it.
    select/deselect every file inside it; `ALL` cycles **None → All (Skeleton)
    → All (Full) → None**.
 5. Pick the mode per file — **Skeleton** (headers only), **Full**, or
-   **Custom** (B4X granular Sub/Type selection). Token estimates fill in
+   **Custom** (granular per item selection — Subs/Types for B4X,
+   classes/members for Dart). Token estimates fill in
    automatically in the background.
 6. Optionally **Auto-Fill** the preamble box from root files
    (`package.json` / `Cargo.toml` / `README.md` + codebase profile), then
@@ -54,10 +55,19 @@ https://dotnet.microsoft.com/download/dotnet/10.0 if you don't have it.
 - Real B4X tokenizer/parser (not regex) for accurate Sub/Type detection
 - `.bal`/`.bjl`/`.bil` layout decoding (B4A and B4J share the same binary format)
 - **Multi-language skeletons** via tree-sitter: Python, TypeScript/TSX,
-  JavaScript, Rust, Go, C, C#, JSON/JSONC, CSS, HTML; every other file type
-  (`.xaml`, `.csproj`, `.sln`, `.slnx`, `.scss`, `.less`, `README.md`,
-  `LICENSE`, `TODO`, extensionless…) gets a structural skeleton via a faithful
-  port of PromptPacker's `fallback_compress`
+  JavaScript, Rust, Go, C, C#, Java, JSON/JSONC, CSS, HTML
+- **Dart skeletons built in** — `.dart` has its own parser (imports, doc
+  comments trimmed to 6 lines for types and 3 for members,
+  classes/mixins/extensions/enums/typedefs and every member signature; method,
+  constructor and closure bodies always collapse into line-omitted markers and
+  never leak implementation lines), so Flutter projects need no extra
+  dependency
+- Every other file type (`.xaml`, `.csproj`, `.sln`, `.slnx`, `.scss`,
+  `.less`, `README.md`, `LICENSE`, `TODO`, extensionless…) gets a structural
+  skeleton via a faithful port of PromptPacker's `fallback_compress`
+- **Granular "Custom" selection for Dart as well as B4X**: expand a `.dart`
+  file and pick individual classes/mixins/enums/typedefs, methods,
+  constructors, getters/setters/operators and fields to include
 - PromptPacker-style workflow: scan loads **all** non-ignored files (binary,
   media, archives, `.lock`, `.min.js` and desktop metadata are skipped),
   folder-grouped list, folder-header click selects all inside

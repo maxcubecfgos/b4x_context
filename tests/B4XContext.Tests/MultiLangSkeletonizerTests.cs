@@ -58,6 +58,85 @@ namespace B4XContext.Tests
             Assert.DoesNotContain("Console.WriteLine", r.Skeleton);
         }
 
+        private const string Java =
+            "package com.demo;\n" +
+            "\n" +
+            "import java.util.List;\n" +
+            "\n" +
+            "public class Greeter {\n" +
+            "    private final String name;\n" +
+            "\n" +
+            "    public Greeter(String name) {\n" +
+            "        this.name = name;\n" +
+            "    }\n" +
+            "\n" +
+            "    public String greet(List<String> who) {\n" +
+            "        return \"hi \" + who.get(0);\n" +
+            "    }\n" +
+            "}\n";
+
+        [Fact]
+        public void Java_keeps_package_imports_and_members_but_drops_bodies()
+        {
+            var r = MultiLangSkeletonizer.Skeletonize(Java, "java");
+            Assert.Contains("package com.demo;", r.Skeleton);
+            Assert.Contains("import java.util.List;", r.Skeleton);
+            Assert.Contains("public class Greeter {", r.Skeleton);
+            Assert.Contains("private final String name;", r.Skeleton);
+            Assert.Contains("public Greeter(String name) {", r.Skeleton);
+            Assert.Contains("public String greet(List<String> who) {", r.Skeleton);
+            Assert.Contains("// ... (", r.Skeleton);
+            Assert.DoesNotContain("this.name = name;", r.Skeleton);
+            Assert.DoesNotContain("who.get(0)", r.Skeleton);
+            Assert.True(r.SkeletonLines < r.OriginalLines);
+        }
+
+        private const string Dart =
+            "import 'dart:async';\n" +
+            "import 'package:flutter/material.dart';\n" +
+            "\n" +
+            "part 'widgets.g.dart';\n" +
+            "\n" +
+            "abstract class Animal {\n" +
+            "  void speak();\n" +
+            "}\n" +
+            "\n" +
+            "mixin Runner {\n" +
+            "  void run() {\n" +
+            "    print('running');\n" +
+            "  }\n" +
+            "}\n" +
+            "\n" +
+            "enum Color { red, green }\n" +
+            "\n" +
+            "typedef Callback = void Function(int x);\n" +
+            "\n" +
+            "Future<void> load(String url) async {\n" +
+            "  await Future.delayed(Duration(seconds: 1));\n" +
+            "}\n" +
+            "\n" +
+            "void main() {\n" +
+            "  runApp(const MyApp());\n" +
+            "}\n";
+
+        [Fact]
+        public void Dart_keeps_headers_via_structural_compression()
+        {
+            var r = MultiLangSkeletonizer.Skeletonize(Dart, "dart");
+            Assert.Contains("import 'dart:async';", r.Skeleton);
+            Assert.Contains("import 'package:flutter/material.dart';", r.Skeleton);
+            Assert.Contains("part 'widgets.g.dart';", r.Skeleton);
+            Assert.Contains("abstract class Animal {", r.Skeleton);
+            Assert.Contains("mixin Runner {", r.Skeleton);
+            Assert.Contains("enum Color { red, green }", r.Skeleton);
+            Assert.Contains("typedef Callback = void Function(int x);", r.Skeleton);
+            Assert.Contains("Future<void> load(String url) async {", r.Skeleton);
+            Assert.Contains("void main() {", r.Skeleton);
+            Assert.DoesNotContain("print('running')", r.Skeleton);
+            Assert.DoesNotContain("runApp(const MyApp());", r.Skeleton);
+            Assert.True(r.SkeletonLines < r.OriginalLines);
+        }
+
         private const string Go = "package main\n" +
             "\n" +
             "import \"fmt\"\n" +

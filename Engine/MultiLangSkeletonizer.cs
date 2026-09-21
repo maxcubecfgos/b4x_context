@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 using TreeSitter;
 
 namespace B4XContext.Engine
@@ -26,6 +27,12 @@ namespace B4XContext.Engine
         private const int MAX_FALLBACK_LINE_LEN = 200;
         private const ulong MAX_SOURCE_BYTES = 10 * 1024 * 1024;
 
+        // C-family/Dart style signature opening a block, e.g.
+        //   "Widget build(BuildContext context) {"  /  "Future<void> load() async {"
+        private static readonly Regex FallbackSignatureRe = new Regex(
+            @"^[A-Za-z_][\w\.<>,\[\]\? ]*\s+[A-Za-z_]\w*\s*\([^;{}]*\)\s*(?:async\s*)?\{\s*$",
+            RegexOptions.Compiled);
+
         private struct Span
         {
             public int Start;      // 0-based first line
@@ -45,6 +52,18 @@ namespace B4XContext.Engine
 
             if (profile.IsRawOnly)
                 return new MultiLangSkeleton { Skeleton = source, OriginalLines = originalLines, SkeletonLines = originalLines };
+
+            if (profile.Kind == SkeletonKind.Dart)
+            {
+                try
+                {
+                    return DartSkeletonizer.Skeletonize(source, profile);
+                }
+                catch (Exception)
+                {
+                    return StructuralCompress(source, extOrKind, originalLines);
+                }
+            }
 
             if (profile.Family != StructuralFamily.None || string.IsNullOrEmpty(profile.GrammarId))
                 return StructuralCompress(source, extOrKind, originalLines);
@@ -306,12 +325,19 @@ namespace B4XContext.Engine
                 || trimmed.StartsWith("const ")
                 || trimmed.StartsWith("let ")
                 || trimmed.StartsWith("var ")
-                || trimmed.StartsWith("static ")
                 || trimmed.StartsWith("final ")
+                || trimmed.StartsWith("static ")
                 || trimmed.StartsWith("pub ")
                 || trimmed.StartsWith("public ")
                 || trimmed.StartsWith("private ")
                 || trimmed.StartsWith("protected ")
+                || trimmed.StartsWith("abstract ")
+                || trimmed.StartsWith("mixin ")
+                || trimmed.StartsWith("extension ")
+                || trimmed.StartsWith("sealed ")
+                || trimmed.StartsWith("part ")
+                || trimmed.StartsWith("library ")
+                || FallbackSignatureRe.IsMatch(trimmed)
                 || trimmed.StartsWith("@")
                 || trimmed.StartsWith("#[")
                 || trimmed == "end"

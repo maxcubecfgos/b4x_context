@@ -172,7 +172,7 @@
                                                         <Setter Property="Content" Value="▾" />
                                                         <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
                                                     </DataTrigger>
-                                                    <DataTrigger Binding="{Binding IsCodeFile}" Value="False">
+                                                    <DataTrigger Binding="{Binding SupportsGranular}" Value="False">
                                                         <Setter Property="Visibility" Value="Collapsed" />
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding Mode}" Value="Skeleton">

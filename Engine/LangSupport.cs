@@ -11,6 +11,17 @@ namespace B4XContext.Engine
         Markdown
     }
 
+    /// <summary>Which skeleton generator handles the language.</summary>
+    public enum SkeletonKind
+    {
+        /// <summary>tree-sitter grammar (GrammarId) with structural fallback.</summary>
+        TreeSitter,
+        /// <summary>Structural line compressor only (no grammar available).</summary>
+        Structural,
+        /// <summary>Dedicated hand-written parser (Engine/DartSkeletonizer).</summary>
+        Dart
+    }
+
     public sealed class LangProfile
     {
         public string GrammarId { get; init; }
@@ -24,6 +35,7 @@ namespace B4XContext.Engine
         public HashSet<string> ImportKinds { get; init; } = new HashSet<string>();
         public HashSet<string> BodyKinds { get; init; } = new HashSet<string>();
         public StructuralFamily Family { get; init; } = StructuralFamily.None;
+        public SkeletonKind Kind { get; init; } = SkeletonKind.TreeSitter;
 
         public string MakeComment(string text) => CommentPrefix + text + CommentSuffix;
         public string MakeOmitMarker(int lines) => MakeComment($"... ({lines} lines omitted) ...");
@@ -44,6 +56,8 @@ namespace B4XContext.Engine
             RegisterGo();
             RegisterC();
             RegisterCsharp();
+            RegisterJava();
+            RegisterDart();
             RegisterRawText();
             RegisterStyleMarkup();
             RegisterXmlProject();
@@ -67,7 +81,8 @@ namespace B4XContext.Engine
                 CommentSuffix = "",
                 IsRawOnly = false,
                 HeaderOnly = false,
-                Family = FamilyFor(ext)
+                Family = FamilyFor(ext),
+                Kind = SkeletonKind.Structural
             };
         }
 
@@ -166,6 +181,27 @@ namespace B4XContext.Engine
                 Imports("using_directive"), Bodies("block", "declaration_list", "class_body", "enum_body"));
         }
 
+        private static void RegisterJava()
+        {
+            var decl = Decl("class_declaration", "interface_declaration", "enum_declaration", "record_declaration",
+                "annotation_type_declaration", "method_declaration", "constructor_declaration",
+                "field_declaration", "static_initializer");
+            RegisterBase("java", "java", "java", "// ", "", false, false, decl,
+                Container("class_declaration", "interface_declaration", "enum_declaration", "record_declaration",
+                    "annotation_type_declaration"),
+                Imports("package_declaration", "import_declaration"),
+                Bodies("class_body", "interface_body", "enum_body", "annotation_type_body", "constructor_body", "block"));
+        }
+
+        private static void RegisterDart()
+        {
+            // Dart has no native grammar in TreeSitter.DotNet 1.3.0 (there is no
+            // tree-sitter-dart.dll in the package), so .dart files go through
+            // MultiLangSkeletonizer.StructuralCompress (imports, class/mixin/enum
+            // headers, function signatures, annotations).
+            RegisterHandwritten("dart", "dart", StructuralFamily.Generic, SkeletonKind.Dart);
+        }
+
         private static void RegisterRawText()
         {
             RegisterBase("json", "json", "json", "/* ", " */", true, false,
@@ -204,13 +240,31 @@ namespace B4XContext.Engine
                 CommentSuffix = "",
                 IsRawOnly = false,
                 HeaderOnly = false,
-                Family = StructuralFamily.Generic
+                Family = StructuralFamily.Generic,
+                Kind = SkeletonKind.Structural
+            };
+        }
+
+        /// <summary>Language with a dedicated hand-written parser (Dart).</summary>
+        private static void RegisterHandwritten(string ext, string fenceTag, StructuralFamily family, SkeletonKind kind)
+        {
+            ExtMap[ext] = new LangProfile
+            {
+                GrammarId = null,
+                FenceTag = fenceTag,
+                CommentPrefix = "// ",
+                CommentSuffix = "",
+                IsRawOnly = false,
+                HeaderOnly = false,
+                Family = family,
+                Kind = kind
             };
         }
 
         private static void RegisterBase(string ext, string grammarId, string fenceTag, string prefix, string suffix,
             bool rawOnly, bool headerOnly, HashSet<string> decl, HashSet<string> container,
-            HashSet<string> imports, HashSet<string> bodies)
+            HashSet<string> imports, HashSet<string> bodies,
+            StructuralFamily family = StructuralFamily.None)
         {
             ExtMap[ext] = new LangProfile
             {
@@ -224,6 +278,8 @@ namespace B4XContext.Engine
                 ContainerDeclKinds = container ?? new HashSet<string>(),
                 ImportKinds = imports ?? new HashSet<string>(),
                 BodyKinds = bodies ?? new HashSet<string>(),
+                Family = family,
+                Kind = grammarId == null ? SkeletonKind.Structural : SkeletonKind.TreeSitter,
             };
         }
 
@@ -242,6 +298,8 @@ namespace B4XContext.Engine
                 ContainerDeclKinds = new HashSet<string>(src.ContainerDeclKinds),
                 ImportKinds = new HashSet<string>(src.ImportKinds),
                 BodyKinds = new HashSet<string>(src.BodyKinds),
+                Family = src.Family,
+                Kind = src.Kind,
             };
         }
 

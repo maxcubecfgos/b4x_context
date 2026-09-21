@@ -321,6 +321,12 @@ namespace b4x_context
                         var result = MultiLangSkeletonizer.Skeletonize(txt, f.Kind);
                         return new TokenEstimate(TokenCounter.Count(result.Skeleton), result.OriginalLines, result.SkeletonLines);
                     }
+                    if (f.Mode == B4XContext.Models.FileMode.Custom && f.Kind == "dart")
+                    {
+                        var dartItems = BundleBuilder.GetItems(f, txt);
+                        var (dartCode, _) = B4xGranularBuilder.BuildCustom(txt, dartItems, f.Name, int.MaxValue);
+                        return new TokenEstimate(TokenCounter.Count(dartCode), 0, 0);
+                    }
                     return new TokenEstimate(TokenCounter.Count(txt), 0, 0);
                 }
                 if (f.Mode == B4XContext.Models.FileMode.Skeleton)
@@ -480,7 +486,7 @@ namespace b4x_context
                 if (pf.Mode == B4XContext.Models.FileMode.Skeleton)
                     pf.Mode = B4XContext.Models.FileMode.Full;
                 else if (pf.Mode == B4XContext.Models.FileMode.Full)
-                    pf.Mode = pf.IsCodeFile ? B4XContext.Models.FileMode.Custom : B4XContext.Models.FileMode.Skeleton;
+                    pf.Mode = pf.SupportsGranular ? B4XContext.Models.FileMode.Custom : B4XContext.Models.FileMode.Skeleton;
                 else
                     pf.Mode = B4XContext.Models.FileMode.Skeleton;
 
@@ -513,7 +519,7 @@ namespace b4x_context
 
         private void EnsureItems(ProjectFile pf)
         {
-            if (pf.HasItems || !pf.IsCodeFile) return;
+            if (pf.HasItems || !pf.SupportsGranular) return;
             try
             {
                 var txt = CodeUtils.ReadTextSafely(pf.Path);

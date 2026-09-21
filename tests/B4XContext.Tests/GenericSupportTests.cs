@@ -49,6 +49,8 @@ namespace B4XContext.Tests
         [InlineData("c")]
         [InlineData("h")]
         [InlineData("cs")]
+        [InlineData("java")]
+        [InlineData("dart")]
         [InlineData("json")]
         [InlineData("jsonc")]
         [InlineData("css")]
@@ -170,6 +172,8 @@ namespace B4XContext.Tests
         [InlineData("c", "c", "c", "// ")]
         [InlineData("h", "c", "c", "// ")]
         [InlineData("cs", "csharp", "cs", "// ")]
+        [InlineData("java", "java", "java", "// ")]
+        [InlineData("dart", null, "dart", "// ")]
         [InlineData("json", "json", "json", "/* ")]
         [InlineData("jsonc", "json", "json", "/* ")]
         [InlineData("css", "css", "css", "/* ")]
@@ -272,6 +276,8 @@ namespace B4XContext.Tests
         [InlineData("rs")]
         [InlineData("cs")]
         [InlineData("go")]
+        [InlineData("java")]
+        [InlineData("dart")]
         public void Code_languages_are_neither_header_only_nor_raw(string ext)
         {
             var p = LangSupport.FromExtension(ext);
@@ -302,6 +308,30 @@ namespace B4XContext.Tests
             Assert.Contains("method_declaration", p.DeclKinds);
             Assert.Contains("using_directive", p.ImportKinds);
             Assert.Contains("namespace_declaration", p.ContainerDeclKinds);
+        }
+
+        [Fact]
+        public void Java_profile_has_expected_node_kinds()
+        {
+            var p = LangSupport.FromExtension("java");
+            Assert.Equal("java", p.GrammarId);
+            Assert.Contains("class_declaration", p.DeclKinds);
+            Assert.Contains("interface_declaration", p.DeclKinds);
+            Assert.Contains("method_declaration", p.DeclKinds);
+            Assert.Contains("import_declaration", p.ImportKinds);
+            Assert.Contains("package_declaration", p.ImportKinds);
+            Assert.Contains("class_body", p.BodyKinds);
+        }
+
+        [Fact]
+        public void Dart_has_no_grammar_and_falls_back_to_structural()
+        {
+            var p = LangSupport.FromExtension("dart");
+            Assert.Null(p.GrammarId);
+            Assert.Equal("dart", p.FenceTag);
+            Assert.False(p.IsRawOnly);
+            Assert.False(p.HeaderOnly);
+            Assert.Equal(StructuralFamily.Generic, p.Family);
         }
 
         [Fact]

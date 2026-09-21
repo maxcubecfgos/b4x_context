@@ -94,6 +94,15 @@ namespace B4XContext.Services
                             sb.AppendLine(skeleton);
                             sb.AppendLine("```");
                         }
+                        else if (f.Mode == FileMode.Custom && f.Kind == "dart")
+                        {
+                            // Dart supports the same granular per-item selection as B4X modules.
+                            var dartItems = GetItems(f, txt);
+                            var (customCode, _) = Engine.B4xGranularBuilder.BuildCustom(txt, dartItems, f.Name, int.MaxValue);
+                            sb.AppendLine($"```{fence}");
+                            sb.AppendLine(customCode);
+                            sb.AppendLine("```");
+                        }
                         else
                         {
                             sb.AppendLine($"```{fence}");
@@ -155,8 +164,17 @@ namespace B4XContext.Services
         {
             if (!f.HasItems)
             {
-                var (root, _) = Engine.B4xParser.Parse(txt);
-                var extracted = Engine.B4xItemExtractor.ExtractItems(txt, root);
+                List<ModuleItem> extracted;
+                if (f.Kind == "dart")
+                {
+                    extracted = Engine.DartItemExtractor.ExtractItems(txt);
+                }
+                else
+                {
+                    var (root, _) = Engine.B4xParser.Parse(txt);
+                    extracted = Engine.B4xItemExtractor.ExtractItems(txt, root);
+                }
+
                 foreach (var it in extracted) f.Items.Add(it);
             }
             return f.Items.ToList();

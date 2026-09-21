@@ -31,6 +31,9 @@ namespace B4XContext.Models
 
         public bool IsB4x => IsCodeFile;
 
+        /// <summary>True when the file supports the granular per-item "Custom" mode (B4X modules and Dart).</summary>
+        public bool SupportsGranular => IsCodeFile || Kind == "dart";
+
         public bool IsGenericText => !IsCodeFile && Kind != "bal" && Kind != "bjl" && Kind != "bil";
 
         private bool _included = false;
