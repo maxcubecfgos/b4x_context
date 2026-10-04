@@ -40,6 +40,35 @@ namespace B4XContext.Models
         private FileMode _mode = FileMode.Skeleton;
         private int _estimatedTokens = 0;
         private bool _isExpanded;
+        private string? _summary;
+        private int _summaryTokens;
+        private bool _useSummary;
+
+        /// <summary>Anchored summary produced by <see cref="Services.LocalCompactor"/> (opencode-style).</summary>
+        public string? Summary
+        {
+            get => _summary;
+            set { if (_summary == value) return; _summary = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasSummary)); }
+        }
+
+        public bool HasSummary => !string.IsNullOrEmpty(_summary);
+
+        /// <summary>cl100k tokens of <see cref="Summary"/>; replaces the file tokens while <see cref="UseSummary"/> is on.</summary>
+        public int SummaryTokens
+        {
+            get => _summaryTokens;
+            set { if (_summaryTokens == value) return; _summaryTokens = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>When true the bundle emits <see cref="Summary"/> instead of the file content.</summary>
+        public bool UseSummary
+        {
+            get => _useSummary;
+            set { if (_useSummary == value) return; _useSummary = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>Tokens this file contributes to the bundle right now.</summary>
+        public int EffectiveTokens => UseSummary && SummaryTokens > 0 ? SummaryTokens : EstimatedTokens;
 
         public bool Included
         {

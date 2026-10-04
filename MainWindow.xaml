@@ -542,18 +542,21 @@
                                         </StackPanel>
                                     </StackPanel>
 
-                                    <!-- Estimated Tokens + Compression -->
+                                    <!-- Estimated Tokens + Compression + Budget -->
                                     <StackPanel Grid.Column="1" HorizontalAlignment="Center">
                                         <TextBlock Text="ESTIMATED TOKENS" FontSize="10" FontWeight="Bold"
                                                    Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,2" />
                                         <TextBlock x:Name="EstimatedTokensText" Text="~0" FontSize="22" FontWeight="Bold"
                                                    Foreground="{StaticResource AccentBrush}" FontFamily="Consolas" />
+                                        <TextBlock x:Name="BudgetText" Text="" FontSize="10"
+                                                   Foreground="{StaticResource StatusSuccessBrush}" Margin="0,2,0,0"
+                                                   FontWeight="SemiBold" />
                                         <TextBlock x:Name="CompressionText" Text="" FontSize="10"
                                                    Foreground="{StaticResource StatusSuccessBrush}" Margin="0,2,0,0"
                                                    FontWeight="SemiBold" />
                                     </StackPanel>
 
-                                    <!-- File tree toggle -->
+                                    <!-- Options: file tree toggle (context window is set in Settings) -->
                                     <StackPanel Grid.Column="2" HorizontalAlignment="Right">
                                         <TextBlock Text="OPTIONS" FontSize="10" FontWeight="Bold"
                                                    Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,6" />
@@ -562,6 +565,11 @@
                                                   Checked="FileTreeToggle_Changed" Unchecked="FileTreeToggle_Changed" />
                                     </StackPanel>
                                 </Grid>
+
+                                <!-- Budget warning (warn-only: never auto-removes anything) -->
+                                <TextBlock x:Name="BudgetWarningText" Text="" FontSize="11"
+                                           Foreground="{StaticResource StatusErrorBrush}"
+                                           TextWrapping="Wrap" Margin="0,8,0,0" />
                             </StackPanel>
                         </Border>
 
@@ -616,7 +624,20 @@
                             Click="CompileButton_Click" />
                 </StackPanel>
 
-                <!-- Right: Generate Prompt -->
+                <!-- Right: Compact (local endpoint) + Generate Prompt -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock x:Name="CompactStatusText" Text="" FontSize="11"
+                               Foreground="{StaticResource MutedTextBrush}"
+                               VerticalAlignment="Center" Margin="0,0,10,0"
+                               MaxWidth="420" TextTrimming="CharacterEllipsis" />
+                    <Button x:Name="AutoCompactButton" Content="⌗  COMPACT"
+                            Padding="12,5" FontSize="12"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            IsEnabled="False" Margin="0,0,10,0"
+                            ToolTip="Summarize the files that exceed the context budget via your local endpoint (Ollama / LM Studio)"
+                            Click="AutoCompactButton_Click" />
+                </StackPanel>
+
                 <Button Grid.Column="2" x:Name="GenerateButton" Content="▶  Generate Prompt"
                         Padding="14,7" Style="{StaticResource PrimaryButtonStyle}"
                         IsEnabled="False"

@@ -38,12 +38,14 @@ b4x_context.slnx           — single-project solution (slnx format)
 │   ├── BuilderLocator.cs  — find B4ABuilder/B4JBuilder.exe on disk
 │   ├── BuilderRunner.cs   — run builder process (300s timeout), capture output
 │   ├── BuildFormatter.cs  — format parsed errors to markdown
+│   ├── ContextBudget.cs   — context budget for local models: 25% output reserve, warn-only overflow analysis (offenders largest-first)
+│   ├── LocalCompactor.cs  — opencode-style anchored summaries via local endpoint; probe/list-models/pick-model + Ollama native chat (`think:false`)
 │   └── CodeUtils.cs       — UTF-8/win-1252 fallback reading, BOM strip, @EndOfDesignText@ skip
 ├── Models/
-│   └── ProjectFile.cs     — Path, Included, Mode (Skeleton/Full), Kind, EstimatedTokens
-├── MainWindow.xaml(.cs)   — UI: file list, text boxes, compile + generate buttons
-├── HotkeySettingsWindow.xaml(.cs) — global hotkey config dialog
-└── App.xaml               — dark theme resources, WPF styles
+│   └── ProjectFile.cs     — Path, Included, Mode (Skeleton/Full), Kind, EstimatedTokens, Summary/UseSummary (compacted files)
+├── MainWindow.xaml(.cs)   — UI: file list, text boxes, compile + generate buttons, budget indicator, COMPACT button
+├── HotkeySettingsWindow.xaml(.cs) — settings dialog: hotkey, context-window slider (1K–1M, default 4K), local endpoint + model combo
+└── App.xaml               — light slate/lavender theme resources, WPF styles (incl. implicit ComboBox/Slider templates)
 
 ## Key behaviors
 
@@ -57,6 +59,10 @@ b4x_context.slnx           — single-project solution (slnx format)
 - **Auto-Fill button** (PREAMBLE / CONTEXT): `Services/AutoPreambleGenerator` reads root files only — `package.json` (Project/Description/Key Stack Node, deps filtered by keyword list, top 10), `Cargo.toml` (regex name/description + "Stack Hint: Rust Project detected."), `README.md` (architecture/flow/`┌`/`╔` block ≤25 lines → "Project Context:", else first 15 lines minus `[!` badges → "Project Overview:"), and a "Codebase Profile" with top-5 extensions (excluding png/jpg/jpeg/svg/ico/lock/json/map). Appends to the preamble box; if nothing found shows an info dialog.
 - **File watcher**: `FileSystemWatcher` over the project root (500 ms debounce) auto re-scans preserving selections by path; opening the same folder again also preserves. Loading a different folder resets state.
 - **Builder locator** checks hardcoded paths under `C:\Program Files (x86)\Anywhere Software\` + per-project config override in `b4x_context_config.json` (key: `builder_path`).
+- **Context budget for local models** (`Services/ContextBudget`, modeled on opencode's `usable()`): the prompt budget is `context − 25% reserved for the answer` (4K → 3.072 usable, floor 256). Presets 1K–1M (`Stops`) configured **only** via the Settings slider (the Pack Summary combo was removed as redundant); `Analyze()` is **warn-only**: colors the token counter red, shows `BudgetText` (usable/free) and `BudgetWarningText` listing the largest offenders (greedy, largest-first) — it never removes files. Persisted as `TargetContext` in `%APPDATA%\B4XContext\settings.json`.
+- **Compact bundle layout** (`BundleBuilder.BuildMarkdown`): order is `TASK → RESPONSE RULES → PREAMBLE → FILE TREE → FILES`, so a 4K window always keeps the goal + contract in view (`compactRules: false` disables the rules block). `ProjectFile.UseSummary` makes a file emit its `Summary` under a `(Summary)` header instead of source.
+- **COMPACT button** (opencode-style compaction): `AutoCompactButton_Click` preflights `LocalCompactor.ProbeAsync` (`GET {base}/models`, 2.5 s timeout) → if the server is down shows a MessageBox with endpoint/model/start-Ollama guidance; then `ListModelsAsync` verifies the configured model exists (else MessageBox with available models + `PickModel` suggestion); then each offender is summarized via `LocalCompactor.SummarizeAsync` with an anchored template (`## Purpose/Key Symbols/Contracts/Notes`, terse bullets, verbatim identifiers, ≤20 bullets) until the bundle fits. The button turns into **CANCEL** while running (`_compactCts`), a 1 s ticker shows phase + elapsed seconds, changing Settings cancels a running job, and each request is capped at `RequestTimeoutSeconds`=120 s (timeout → clear message instead of hanging). **Ollama detection**: native `POST /api/chat` with `think:false` (reasoning models like qwen3.5 otherwise burn `MaxOutputTokens`=2048 on hidden thinking and return empty content) — non-Ollama servers fall back to `/v1/chat/completions`. Failures are classified with `IsOffline`/`ParseApiError`.
+- **Settings dialog**: context slider (snap to `ContextBudget.Stops`, shows reserved/usable), endpoint TextBox (re-lists models on LostFocus) and **non-editable** model ComboBox populated from the server (an editable one swallowed clicks meant to open the list); auto-picks a local coding model when the configured one is missing (never `:cloud`). All persisted (`TargetContext`, `LocalEndpoint`, `LocalModel`).
 - **Settings** stored at `%APPDATA%\B4XContext\settings.json` (default hotkey: `Ctrl+Shift+P`).
 - **Preamble PASTE button**: reads the clipboard on demand and appends to the preamble box (`Services/TextUtils.AppendBlock`). No global clipboard hook — clipboard is only read when the user clicks PASTE.
 - **Global hotkey** (default `Ctrl+Shift+P`) uses `RegisterHotKey` — brings window to foreground.

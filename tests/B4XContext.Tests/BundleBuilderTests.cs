@@ -235,6 +235,96 @@ namespace B4XContext.Tests
             }
         }
 
+        [Fact]
+        public void BuildMarkdown_compact_layout_pins_task_and_rules_at_top()
+        {
+            var md = BundleBuilder.BuildMarkdown("MY CONTEXT", "MY TASK", ArrayEmpty(), includeFileTree: false);
+
+            int task = md.IndexOf("## TASK / QUERY");
+            int rules = md.IndexOf("## RESPONSE RULES");
+            int preamble = md.IndexOf("## PREAMBLE / CONTEXT");
+            int files = md.IndexOf("## FILES");
+
+            Assert.True(task >= 0 && rules > task && preamble > rules && files > preamble,
+                $"expected TASK < RULES < PREAMBLE < FILES, got {task}, {rules}, {preamble}, {files}");
+            Assert.Contains("Do not invent APIs", md);
+            Assert.Contains("ask one short question", md);
+            Assert.Contains("MY TASK", md);
+        }
+
+        [Fact]
+        public void BuildMarkdown_compact_rules_can_be_disabled()
+        {
+            var md = BundleBuilder.BuildMarkdown("PRE", "TASK", ArrayEmpty(), includeFileTree: false,
+                compactRules: false);
+
+            Assert.DoesNotContain("## RESPONSE RULES", md);
+            Assert.Contains("## TASK / QUERY", md);
+        }
+
+        [Fact]
+        public void BuildMarkdown_uses_summary_instead_of_source_when_compacted()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "b4x_ctx_sum_" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, "Mod.bas");
+            File.WriteAllText(path, "Sub One\n\tLog(1)\nEnd Sub\n");
+
+            try
+            {
+                var pf = new ProjectFile(path)
+                {
+                    Kind = "bas",
+                    Mode = FileMode.Full,
+                    Included = true,
+                    Summary = "## Purpose\n- does one thing",
+                    SummaryTokens = 42,
+                    UseSummary = true
+                };
+
+                var md = BundleBuilder.BuildMarkdown("", "", new[] { pf });
+
+                Assert.Contains("### Mod.bas   (Summary)", md);
+                Assert.Contains("## Purpose", md);
+                Assert.DoesNotContain("Log(1)", md);
+            }
+            finally
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+
+        [Fact]
+        public void BuildMarkdown_summary_is_skipped_when_not_used()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "b4x_ctx_nosum_" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, "Mod.bas");
+            File.WriteAllText(path, "Sub One\n\tLog(1)\nEnd Sub\n");
+
+            try
+            {
+                var pf = new ProjectFile(path)
+                {
+                    Kind = "bas",
+                    Mode = FileMode.Skeleton,
+                    Included = true,
+                    Summary = "stale summary",
+                    UseSummary = false
+                };
+
+                var md = BundleBuilder.BuildMarkdown("", "", new[] { pf });
+
+                Assert.Contains("### Mod.bas   (Skeleton)", md);
+                Assert.DoesNotContain("stale summary", md);
+                Assert.Contains("Sub One", md);
+            }
+            finally
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+
         private static ProjectFile[] ArrayEmpty() => System.Array.Empty<ProjectFile>();
     }
 }

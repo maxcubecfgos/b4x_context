@@ -34,6 +34,20 @@ namespace b4x_context
         private uint _hotkeyModifiers = 0;
         private uint _hotkeyKey = 0;
         private string _settingsPath;
+
+        // Context budget + local compaction endpoint (opencode-style anchored summaries)
+        private int _targetContext = ContextBudget.DefaultContext;
+        private string _localEndpoint = LocalCompactor.DefaultEndpoint;
+        private string _localModel = LocalCompactor.DefaultModel;
+        // Debounces the budget/token recompute while the user types in PREAMBLE/TASK.
+        private readonly System.Windows.Threading.DispatcherTimer _budgetDebounce;
+
+        // Running compaction (null = idle). While set, the COMPACT button becomes CANCEL.
+        private CancellationTokenSource? _compactCts;
+        private System.Windows.Threading.DispatcherTimer? _compactTicker;
+        private DateTime _compactStarted;
+        private string _compactPhase = "";
+
         private List<ProjectFile> _files = new List<ProjectFile>();
         private string? _projectRoot;
         private string? _lastCompileText;
@@ -70,6 +84,16 @@ namespace b4x_context
 
         public MainWindow()
         {
+            _budgetDebounce = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(350)
+            };
+            _budgetDebounce.Tick += (s, a) =>
+            {
+                _budgetDebounce.Stop();
+                UpdateEstimatedTokens();
+            };
+
             InitializeComponent();
 
             // Setup settings path and load hotkey config
@@ -133,7 +157,7 @@ namespace b4x_context
             // Show settings dialog
             var currentMods = GetModifiersString();
             var currentKey = GetKeyString();
-            var dlg = new HotkeySettingsWindow(currentMods, currentKey) { Owner = this };
+            var dlg = new HotkeySettingsWindow(currentMods, currentKey, _targetContext, _localEndpoint, _localModel) { Owner = this };
             var prevMods = currentMods;
             var prevKey = currentKey;
             var prevModifiersVal = _hotkeyModifiers;
@@ -145,6 +169,14 @@ namespace b4x_context
                 // Attempt to apply new hotkey
                 var newMods = dlg.Modifiers;
                 var newKey = dlg.KeyName;
+
+                // Local AI + context budget apply regardless of hotkey registration outcome
+                _localEndpoint = dlg.LocalEndpoint;
+                _localModel = dlg.LocalModel;
+                _targetContext = ContextBudget.NearestStop(dlg.ContextTokens);
+                _compactCts?.Cancel(); // settings changed: abort any running compaction
+                SaveSettings(GetModifiersString(), GetKeyString());
+                UpdateEstimatedTokens();
 
                 // Unregister previous hotkey
                 try { if (_windowHandle != IntPtr.Zero) UnregisterHotKey(_windowHandle, HOTKEY_ID); } catch { }
@@ -170,10 +202,7 @@ namespace b4x_context
                     // persist settings
                     try
                     {
-                        var dir = Path.GetDirectoryName(_settingsPath);
-                        if (!Directory.Exists(dir!)) Directory.CreateDirectory(dir!);
-                        var obj = new { Modifiers = newMods, Key = newKey };
-                        File.WriteAllText(_settingsPath, JsonSerializer.Serialize(obj));
+                        SaveSettings(newMods, newKey);
                     }
                     catch { }
                 }
@@ -226,6 +255,7 @@ namespace b4x_context
             // Update total estimated tokens
             UpdateEstimatedTokens();
             UpdateGenerateButtonState();
+            AutoCompactButton.IsEnabled = _files != null && _files.Count > 0;
         }
 
         // Generate Prompt requires a Task/Query, plus some form of context:
@@ -241,6 +271,14 @@ namespace b4x_context
         private void PreambleOrTask_TextChanged(object sender, TextChangedEventArgs e)
         {
             UpdateGenerateButtonState();
+
+            // Keep the token counter and the budget warning in sync with what is being typed
+            // (debounced so cl100k does not run on every keystroke).
+            if (_budgetDebounce != null)
+            {
+                _budgetDebounce.Stop();
+                _budgetDebounce.Start();
+            }
         }
 
         private void LoadHotkeySettings()
@@ -260,9 +298,17 @@ namespace b4x_context
                 var txt = File.ReadAllText(_settingsPath);
                 using var doc = JsonDocument.Parse(txt);
                 var root = doc.RootElement;
-                var mods = root.GetProperty("Modifiers").GetString();
-                var key = root.GetProperty("Key").GetString();
+                var mods = root.TryGetProperty("Modifiers", out var mEl) ? mEl.GetString() : null;
+                var key = root.TryGetProperty("Key", out var kEl) ? kEl.GetString() : null;
                 ParseHotkey(mods ?? "Control,Shift", key ?? "P");
+
+                if (root.TryGetProperty("TargetContext", out var tEl) && tEl.TryGetInt32(out var ctx)
+                    && ctx >= ContextBudget.MinContext && ctx <= ContextBudget.MaxContext)
+                    _targetContext = ContextBudget.NearestStop(ctx);
+                if (root.TryGetProperty("LocalEndpoint", out var eEl) && !string.IsNullOrWhiteSpace(eEl.GetString()))
+                    _localEndpoint = eEl.GetString()!;
+                if (root.TryGetProperty("LocalModel", out var lEl) && !string.IsNullOrWhiteSpace(lEl.GetString()))
+                    _localModel = lEl.GetString()!;
             }
             catch
             {
@@ -270,6 +316,25 @@ namespace b4x_context
                 _hotkeyModifiers = 0;
                 _hotkeyKey = (uint)System.Windows.Input.KeyInterop.VirtualKeyFromKey(System.Windows.Input.Key.P);
             }
+        }
+
+        private void SaveSettings(string mods, string key)
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(_settingsPath);
+                if (!Directory.Exists(dir!)) Directory.CreateDirectory(dir!);
+                var obj = new
+                {
+                    Modifiers = mods,
+                    Key = key,
+                    TargetContext = _targetContext,
+                    LocalEndpoint = _localEndpoint,
+                    LocalModel = _localModel
+                };
+                File.WriteAllText(_settingsPath, JsonSerializer.Serialize(obj));
+            }
+            catch { }
         }
 
         private void ParseHotkey(string mods, string key)
@@ -379,9 +444,13 @@ namespace b4x_context
                     if (_tokenCache.TryGetValue(f.Path, out var cached))
                     {
                         f.EstimatedTokens = cached.Tokens;
-                        total += cached.Tokens;
+                        total += f.EffectiveTokens;
                         _totalOriginalLines += cached.OriginalLines;
                         _totalSkeletonLines += cached.SkeletonLines;
+                    }
+                    else if (f.UseSummary && f.SummaryTokens > 0)
+                    {
+                        total += f.SummaryTokens;
                     }
                     else
                     {
@@ -401,6 +470,7 @@ namespace b4x_context
                 catch { }
 
                 EstimatedTokensText.Text = $"~{total}";
+                UpdateBudgetText(total);
                 UpdateCompressionText();
 
                 if (cts.IsCancellationRequested || pending.Count == 0)
@@ -437,7 +507,8 @@ namespace b4x_context
                             foreach (var f in FilesCollection)
                             {
                                 if (!f.Included) continue;
-                                if (_tokenCache.TryGetValue(f.Path, out var c)) t += c.Tokens;
+                                if (_tokenCache.TryGetValue(f.Path, out var c)) f.EstimatedTokens = c.Tokens;
+                                t += f.EffectiveTokens;
                             }
                             try
                             {
@@ -447,6 +518,7 @@ namespace b4x_context
                             catch { }
 
                             EstimatedTokensText.Text = $"~{t}";
+                            UpdateBudgetText(t);
                             UpdateCompressionText();
                         });
                     }
@@ -560,6 +632,254 @@ namespace b4x_context
         private void FileTreeToggle_Changed(object sender, RoutedEventArgs e)
         {
             UpdateEstimatedTokens();
+        }
+
+        // ---- Context budget (warn-only) ----------------------------------------
+
+        /// <summary>Budget line + over-budget warning listing the offending files (nothing is removed).</summary>
+        private void UpdateBudgetText(int total)
+        {
+            try
+            {
+                var included = new List<(string Name, int Tokens)>();
+                foreach (var f in FilesCollection)
+                    if (f.Included) included.Add((BundleBuilder.DisplayPath(f), f.EffectiveTokens));
+
+                var report = ContextBudget.Analyze(total, _targetContext, included);
+                var accent = (System.Windows.Media.Brush)FindResource("AccentBrush");
+                var ok = (System.Windows.Media.Brush)FindResource("StatusSuccessBrush");
+                var err = (System.Windows.Media.Brush)FindResource("StatusErrorBrush");
+                string label = ContextBudget.Label(report.Context);
+
+                if (report.Fits)
+                {
+                    BudgetText.Text = $"{label} ctx · {report.Usable:N0} usable · {report.Usable - report.Total:N0} free";
+                    BudgetText.Foreground = ok;
+                    EstimatedTokensText.Foreground = accent;
+                    BudgetWarningText.Text = "";
+                }
+                else
+                {
+                    BudgetText.Text = $"{label} ctx · {report.Usable:N0} usable · {report.Excess:N0} OVER";
+                    BudgetText.Foreground = err;
+                    EstimatedTokensText.Foreground = err;
+
+                    var msg = $"Over the {label} budget by ~{report.Excess:N0} tokens " +
+                              $"({report.ReservedOutput:N0} reserved for the answer).";
+                    if (report.Offenders.Count > 0)
+                    {
+                        var names = string.Join(", ", report.Offenders.Take(3)
+                            .Select(o => $"{o.Name} (~{o.Tokens:N0})"));
+                        msg += $" Largest: {names} — switch to Skeleton, uncheck them, or press COMPACT.";
+                    }
+                    if (report.BaseOverBudget)
+                        msg += " Preamble/task/tree alone already exceed the usable budget.";
+                    BudgetWarningText.Text = msg;
+                }
+            }
+            catch { }
+        }
+
+        private int ComputeBudgetTotal()
+        {
+            int total = TokenCounter.Count(PreambleText.Text) + TokenCounter.Count(TaskText.Text);
+            foreach (var f in FilesCollection)
+            {
+                if (!f.Included) continue;
+                if (_tokenCache.TryGetValue(f.Path, out var c)) f.EstimatedTokens = c.Tokens;
+                total += f.EffectiveTokens;
+            }
+            try
+            {
+                if (FileTreeToggle.IsChecked == true && _files != null && _files.Any())
+                    total += Math.Max(0, BundleBuilder.BuildAsciiTree(_files).Length / 4);
+            }
+            catch { }
+            return total;
+        }
+
+        // ---- Compaction via local endpoint (opencode-style) --------------------
+
+        private async void AutoCompactButton_Click(object sender, RoutedEventArgs e)
+        {
+            // A second click while running cancels the compaction.
+            if (_compactCts != null)
+            {
+                _compactCts.Cancel();
+                CompactStatusText.Text = "Cancelling…";
+                return;
+            }
+            if (_files == null || _files.Count == 0) return;
+
+            _compactCts = new CancellationTokenSource();
+            var ct = _compactCts.Token;
+            _compactStarted = DateTime.Now;
+            _compactPhase = "";
+            AutoCompactButton.Content = "■  CANCEL";
+            int done = 0;
+            var err = (System.Windows.Media.Brush)FindResource("StatusErrorBrush");
+            var ok = (System.Windows.Media.Brush)FindResource("StatusSuccessBrush");
+            var warn = (System.Windows.Media.Brush)FindResource("StatusWarningBrush");
+            StartCompactTicker();
+
+            // Shows the current phase and refreshes it with elapsed seconds by the ticker.
+            void Phase(string text)
+            {
+                _compactPhase = text;
+                CompactStatusText.Text = $"{text} {(DateTime.Now - _compactStarted).TotalSeconds:0}s";
+            }
+
+            try
+            {
+                int total = ComputeBudgetTotal();
+                var report = ContextBudget.Analyze(total, _targetContext, BudgetedFiles());
+                if (report.Fits)
+                {
+                    CompactStatusText.Text = $"Fits {ContextBudget.Label(_targetContext)} — nothing to compact";
+                    CompactStatusText.Foreground = ok;
+                    return;
+                }
+
+                // Preflight: detect a closed Ollama/LM Studio before doing any work.
+                Phase($"Checking {_localEndpoint}");
+                var probe = await LocalCompactor.ProbeAsync(_localEndpoint, ct);
+                if (probe != null)
+                {
+                    CompactStatusText.Text = "Local endpoint offline — compaction unavailable";
+                    CompactStatusText.Foreground = err;
+                    MessageBox.Show(this, OfflineMessage(probe), "Local endpoint offline",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // The configured model must exist on the server (a missing one gives HTTP 404).
+                Phase("Listing models");
+                var models = await LocalCompactor.ListModelsAsync(_localEndpoint, ct);
+                if (models.Count > 0 && !models.Any(m => m.Equals(_localModel, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var suggestion = LocalCompactor.PickModel(_localModel, models);
+                    CompactStatusText.Text = $"Model '{_localModel}' not served by the endpoint";
+                    CompactStatusText.Foreground = err;
+                    MessageBox.Show(this,
+                        $"The configured model does not exist on the local endpoint:\n\n{_localModel}\n\n" +
+                        $"Available: {string.Join(", ", models)}\n\nSuggested: {suggestion}\n\n" +
+                        "Pick a model in Settings (gear icon) so compaction can run.",
+                        "Model not found", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Offenders are largest-first; binary layouts can't be summarized.
+                var candidates = report.Offenders
+                    .Select(o => _files.FirstOrDefault(f => f.Included && BundleBuilder.DisplayPath(f) == o.Name))
+                    .Where(f => f != null && f.Kind != "bal" && f.Kind != "bjl" && f.Kind != "bil")
+                    .ToList();
+                if (candidates.Count == 0)
+                {
+                    CompactStatusText.Text = "No summarizable files over budget";
+                    CompactStatusText.Foreground = err;
+                    return;
+                }
+
+                for (int i = 0; i < candidates.Count; i++)
+                {
+                    total = ComputeBudgetTotal();
+                    report = ContextBudget.Analyze(total, _targetContext, BudgetedFiles());
+                    if (report.Fits) break;
+
+                    var f = candidates[i]!;
+                    Phase($"Compacting {i + 1}/{candidates.Count}: {f.Name} · {_localModel}");
+                    var txt = CodeUtils.ReadTextSafely(f.Path);
+                    var path = BundleBuilder.DisplayPath(f);
+                    var prompt = f.HasSummary && f.Summary != null
+                        ? LocalCompactor.BuildUpdatePrompt(path, f.Summary, txt)
+                        : LocalCompactor.BuildSummaryPrompt(path, txt);
+
+                    var summary = await LocalCompactor.SummarizeAsync(_localEndpoint, _localModel, prompt, ct);
+                    f.Summary = summary;
+                    f.SummaryTokens = TokenCounter.Count(summary);
+                    f.UseSummary = true;
+                    done++;
+                }
+
+                total = ComputeBudgetTotal();
+                report = ContextBudget.Analyze(total, _targetContext, BudgetedFiles());
+                if (report.Fits)
+                {
+                    CompactStatusText.Text = $"Compacted {done} in {(DateTime.Now - _compactStarted).TotalSeconds:0}s · {total:N0}/{report.Usable:N0} within {ContextBudget.Label(_targetContext)}";
+                    CompactStatusText.Foreground = ok;
+                }
+                else
+                {
+                    CompactStatusText.Text = $"Compacted {done} · still {report.Excess:N0} over {ContextBudget.Label(_targetContext)}";
+                    CompactStatusText.Foreground = err;
+                }
+                UpdateEstimatedTokens();
+            }
+            catch (OperationCanceledException)
+            {
+                CompactStatusText.Text = $"Cancelled after {(DateTime.Now - _compactStarted).TotalSeconds:0}s · {done} compacted";
+                CompactStatusText.Foreground = warn;
+                UpdateEstimatedTokens();
+            }
+            catch (Exception ex)
+            {
+                if (LocalCompactor.IsOffline(ex))
+                {
+                    CompactStatusText.Text = "Local endpoint offline — compaction cancelled";
+                    CompactStatusText.Foreground = err;
+                    MessageBox.Show(this, OfflineMessage($"The connection was lost: {ex.Message}"),
+                        "Local endpoint offline", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+                else
+                {
+                    CompactStatusText.Text = $"Compact failed: {ex.Message}";
+                    CompactStatusText.Foreground = err;
+                }
+            }
+            finally
+            {
+                _compactTicker?.Stop();
+                _compactCts = null;
+                AutoCompactButton.Content = "⌗  COMPACT";
+                AutoCompactButton.IsEnabled = _files != null && _files.Count > 0;
+            }
+        }
+
+        /// <summary>Ticks every second while compacting so long runs show live elapsed time.</summary>
+        private void StartCompactTicker()
+        {
+            if (_compactTicker == null)
+            {
+                _compactTicker = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(1)
+                };
+                _compactTicker.Tick += (s, a) =>
+                {
+                    if (_compactCts == null)
+                    {
+                        _compactTicker.Stop();
+                        return;
+                    }
+                    CompactStatusText.Text = $"{_compactPhase} {(DateTime.Now - _compactStarted).TotalSeconds:0}s…";
+                };
+            }
+            _compactTicker.Start();
+        }
+
+        /// <summary>User-facing explanation when the local AI server cannot be reached.</summary>
+        private string OfflineMessage(string reason) =>
+            "No local AI server is reachable, so compaction cannot run.\n\n" +
+            reason + "\n\n" +
+            $"Endpoint: {LocalCompactor.NormalizeChatUrl(_localEndpoint)}\n" +
+            $"Model: {_localModel}\n\n" +
+            "Start Ollama (ollama serve) or LM Studio and try again. " +
+            "The endpoint and model can be changed in Settings (gear icon).";
+
+        private IEnumerable<(string Name, int Tokens)> BudgetedFiles()
+        {
+            foreach (var f in FilesCollection)
+                if (f.Included) yield return (BundleBuilder.DisplayPath(f), f.EffectiveTokens);
         }
 
         private void GenerateButton_Click(object sender, RoutedEventArgs e)

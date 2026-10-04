@@ -14,8 +14,14 @@ namespace B4XContext.Services
     {
         private const int MAX_TREE_LINES = 4000;
 
+        /// <summary>
+        /// Compact bundle layout for small-context local models: the goal and the response contract
+        /// stay pinned at the top (TASK → RESPONSE RULES → CONTEXT), then the structural file map,
+        /// then the code — so a 4K window always keeps the task and rules in view.
+        /// </summary>
         public static string BuildMarkdown(string preamble, string task, IEnumerable<ProjectFile> files, bool includeFileTree = true,
-            string activeCode = null, string activeFile = null, string activeSub = null, string compileErrors = null)
+            string activeCode = null, string activeFile = null, string activeSub = null, string compileErrors = null,
+            bool compactRules = true)
         {
             var sb = new StringBuilder();
             sb.AppendLine("# Context Bundle");
@@ -27,14 +33,25 @@ namespace B4XContext.Services
                 sb.AppendLine("---");
             }
 
-            sb.AppendLine("## PREAMBLE / CONTEXT");
-            sb.AppendLine();
-            sb.AppendLine(string.IsNullOrWhiteSpace(preamble) ? "(none)" : preamble);
-            sb.AppendLine();
-
             sb.AppendLine("## TASK / QUERY");
             sb.AppendLine();
             sb.AppendLine(string.IsNullOrWhiteSpace(task) ? "(none)" : task);
+            sb.AppendLine();
+
+            if (compactRules)
+            {
+                sb.AppendLine("## RESPONSE RULES");
+                sb.AppendLine();
+                sb.AppendLine("- Work only from this context. Do not invent APIs, files, symbols, or behavior that is not shown here.");
+                sb.AppendLine("- If the context is not enough to answer, ask one short question instead of guessing.");
+                sb.AppendLine("- Do the task exactly as written; when code is requested, reply with the code in one fenced block and a one-line note of where it goes.");
+                sb.AppendLine("- Keep the reply short: no preamble, no recap of the context, no extra options.");
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("## PREAMBLE / CONTEXT");
+            sb.AppendLine();
+            sb.AppendLine(string.IsNullOrWhiteSpace(preamble) ? "(none)" : preamble);
             sb.AppendLine();
 
             if (includeFileTree)
@@ -62,11 +79,18 @@ namespace B4XContext.Services
 
             foreach (var f in files.Where(f => f.Included))
             {
-                sb.AppendLine($"### {f.Name}   ({f.Mode})");
+                sb.AppendLine($"### {f.Name}   ({(f.UseSummary && f.HasSummary ? "Summary" : f.Mode)})");
                 sb.AppendLine();
                 try
                 {
-                    if (f.Kind == "bal" || f.Kind == "bjl" || f.Kind == "bil")
+                    if (f.UseSummary && f.HasSummary)
+                    {
+                        // Compacted file: emit the anchored summary instead of the source.
+                        sb.AppendLine($"```{LangSupport.FenceTagFor(f.Kind)}");
+                        sb.AppendLine(f.Summary);
+                        sb.AppendLine("```");
+                    }
+                    else if (f.Kind == "bal" || f.Kind == "bjl" || f.Kind == "bil")
                     {
                         var data = System.IO.File.ReadAllBytes(f.Path);
                         var decoded = Engine.BalDecoder.Decode(data, full: f.Mode == FileMode.Full);
